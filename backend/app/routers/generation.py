@@ -1,22 +1,23 @@
 """Эндпоинты генерации: приём фото, запуск Replicate, опрос статуса.
 
 Поток (раздел 4):
-- POST /generate: квота → создание generation в БД → запуск prediction(s) на Replicate
-  с webhook → возврат generation_id
+- POST /generate: квота → создание generation в БД → параллельный запуск
+  prediction(s) на Replicate (asyncio.gather) с webhook → возврат generation_id
 - GET /generations/{id}: статус + результаты
 - POST /webhooks/replicate: callback от Replicate → загрузка результата → запись cost_usd
 """
 
 from __future__ import annotations
 
+import asyncio
 import logging
 
-from fastapi import APIRouter, BackgroundTasks, Header, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from app.config import settings
-from app.schemas import RoomType
+from app.schemas import RoomType, StyleId
 from app.services import replicate as replicate_client
 from app.services import supabase_admin
 from app.styles import get_style_prompt
@@ -40,13 +41,11 @@ async def generate(
     styles: str = "loft",
     user_id: str | None = None,
 ) -> JSONResponse:
-    """Запускает генерацию вариантов помещения.
+    """Запускает генерацию вариантов помещения во всех выбранных стилях.
 
-    На этапе 4 (POC) — один стиль, без параллелизации.
-    Этап 5 — мультистили + Promise.all-аналог (asyncio.gather).
+    Этап 5: параллельная генерация через asyncio.gather (аналог Promise.all).
+    Free-тариф ограничивается 1 стилем (раздел 6) — проверка на этапе 7.
     """
-    # TODO этап 7: проверка квоты/подписки через supabase_admin.check_quota()
-
     if not settings.replicate_api_token:
         raise HTTPException(
             status_code=503,
@@ -55,16 +54,13 @@ async def generate(
 
     # Парсинг стилей.
     try:
-        from app.schemas import StyleId
         style_ids = [StyleId(s.strip()) for s in styles.split(",") if s.strip()]
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=f"Неизвестный стиль: {exc}") from exc
     if not style_ids:
         raise HTTPException(status_code=422, detail="Не указаны стили")
 
-    # POC этапа 4: берём только первый стиль.
-    style = style_ids[0]
-    prompt = get_style_prompt(style)
+    # TODO этап 7: проверка квоты/подписки через supabase_admin.check_quota()
 
     # Создаём запись генерации в БД.
     try:
@@ -79,14 +75,13 @@ async def generate(
         logger.exception("Ошибка создания generation в БД")
         raise HTTPException(status_code=502, detail=str(exc)) from exc
 
-    # Запуск prediction на Replicate (в фоне, чтобы не блокировать ответ).
+    # Параллельный запуск всех стилей (asyncio.gather — аналог Promise.all).
     background_tasks.add_task(
-        _run_prediction,
+        _run_all_styles,
         generation_id=generation_id,
         user_id=user_id,
         image_url=image_url,
-        style=style.value,
-        prompt=prompt,
+        styles=style_ids,
     )
 
     return JSONResponse(
@@ -95,21 +90,43 @@ async def generate(
     )
 
 
-async def _run_prediction(
+async def _run_all_styles(
     generation_id: str,
     user_id: str | None,
     image_url: str,
-    style: str,
-    prompt: str,
+    styles: list[StyleId],
 ) -> None:
-    """Фоновый запуск prediction и создание записи результата."""
+    """Параллельный запуск prediction для всех стилей (раздел 4: Promise.all).
+
+    Каждый стиль — отдельный prediction на Replicate со своим webhook.
+    return_exceptions=True: падение одного стиля не роняет остальные.
+    """
+    tasks = [
+        _run_single_prediction(generation_id, user_id, image_url, s)
+        for s in styles
+    ]
+    await asyncio.gather(*tasks, return_exceptions=True)
+
+
+async def _run_single_prediction(
+    generation_id: str,
+    user_id: str | None,
+    image_url: str,
+    style: StyleId,
+) -> None:
+    """Запуск одного prediction и создание записи результата."""
+    prompt = get_style_prompt(style)
     try:
         prediction = await replicate_client.create_prediction(image_url, prompt)
         prediction_id = prediction.get("id", "")
-        await supabase_admin.create_result(generation_id, style, prediction_id)
+        await supabase_admin.create_result(generation_id, style.value, prediction_id)
     except Exception:
-        logger.exception("Ошибка запуска Replicate prediction")
-        await supabase_admin.update_generation_status(generation_id, "failed")
+        logger.exception("Ошибка запуска Replicate prediction для стиля %s", style)
+        # Отдельный стиль упал — генерация продолжается, другие стили живы.
+        try:
+            await supabase_admin.create_result_failed(generation_id, style.value)
+        except Exception:
+            logger.exception("Не удалось записать failed-результат для %s", style)
 
 
 # ============================================================================
@@ -125,9 +142,7 @@ class ReplicateWebhookPayload(BaseModel):
 
 
 @router.post("/webhooks/replicate")
-async def replicate_webhook(
-    payload: ReplicateWebhookPayload,
-) -> dict:
+async def replicate_webhook(payload: ReplicateWebhookPayload) -> dict:
     """Callback от Replicate: матчинг по prediction_id → загрузка результата.
 
     Раздел 4: не списывать генерацию при ошибке API.
@@ -159,10 +174,10 @@ async def replicate_webhook(
     user_id = result.get("user_id")
 
     if payload.status == "succeeded" and payload.output:
-        output_url = payload.output[0] if isinstance(payload.output, list) else payload.output
-        cost = replicate_client.estimate_cost(
-            {"metrics": payload.metrics or {}}
+        output_url = (
+            payload.output[0] if isinstance(payload.output, list) else payload.output
         )
+        cost = replicate_client.estimate_cost({"metrics": payload.metrics or {}})
 
         # Загрузка результата в Supabase Storage.
         async with httpx.AsyncClient(timeout=30) as client:

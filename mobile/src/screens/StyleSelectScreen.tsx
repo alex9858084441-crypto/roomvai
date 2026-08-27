@@ -9,7 +9,7 @@ import { useTranslation } from "react-i18next";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 
 import { COLORS, RADIUS, SPACING } from "../constants/theme";
-import { MAX_STYLES_PRO } from "../constants/plans";
+import { MAX_STYLES_FREE, MAX_STYLES_PRO } from "../constants/plans";
 import type { RootStackParamList } from "../types/navigation";
 import type { StyleId } from "../types";
 
@@ -37,11 +37,14 @@ export function StyleSelectScreen({
   const { imageUri } = route.params;
   const [selected, setSelected] = useState<Set<StyleId>>(new Set());
 
+  // TODO этап 7: проверка подписки → maxStyles = MAX_STYLES_PRO
+  const maxStyles = MAX_STYLES_FREE;
+
   const toggle = (id: StyleId) => {
     setSelected((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
-      else if (next.size < MAX_STYLES_PRO) next.add(id);
+      else if (next.size < maxStyles) next.add(id);
       return next;
     });
   };
@@ -69,7 +72,7 @@ export function StyleSelectScreen({
   return (
     <View style={styles.wrap}>
       <Text style={styles.title}>
-        {t("home.selectStyles", { count: selected.size })}
+        {t("home.selectStyles", { count: `${selected.size}/${maxStyles}` })}
       </Text>
       <FlatList
         data={STYLE_IDS}

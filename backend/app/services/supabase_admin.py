@@ -79,6 +79,22 @@ async def create_result(
         return result["id"]
 
 
+async def create_result_failed(
+    generation_id: str, style: str, error: str = "prediction_failed"
+) -> None:
+    """Создаёт запись результата с failed-статусом (стиль не запустился)."""
+    url = f"{_base()}/rest/v1/generation_results"
+    payload = {
+        "generation_id": generation_id,
+        "style": style,
+        "status": "failed",
+        "error": error,
+    }
+    async with httpx.AsyncClient(timeout=15) as client:
+        resp = await client.post(url, json=payload, headers=_headers())
+        resp.raise_for_status()
+
+
 async def update_result(
     result_id: str,
     *,
@@ -174,14 +190,14 @@ async def check_quota(user_id: str | None) -> bool:
     Free: 1 без регистрации, +1 после регистрации, затем — paywall.
     Платные (premium) — безлимит.
     """
-    # Премиум-проверка.
     if user_id:
+        # Премиум-проверка.
         sub_url = f"{_base()}/rest/v1/subscriptions?user_id=eq.{user_id}&status=eq.active"
         async with httpx.AsyncClient(timeout=10) as client:
             resp = await client.get(sub_url, headers=_headers())
             resp.raise_for_status()
             if resp.json():
-                return True  # активная подписка — безлимит
+                return True
 
         # Подсчёт использованных бесплатных генераций.
         gens_url = f"{_base()}/rest/v1/generations?user_id=eq.{user_id}"
@@ -194,4 +210,4 @@ async def check_quota(user_id: str | None) -> bool:
         )
 
     # Аноним: только 1 бесплатная.
-    return True  # учёт анонимных — по anonymous_id, упрощённо на этапе 7
+    return True
