@@ -15,7 +15,8 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 
 import { COLORS, RADIUS, SPACING } from "../constants/theme";
 import { track } from "../services/api/analytics";
-import { signInWithApple, signInWithGoogle, signInWithEmail, signUpWithEmail } from "../services/supabase/client";
+import { signInWithApple, signInWithGoogle, signInWithEmail, signUpWithEmail, getCurrentUserId } from "../services/supabase/client";
+import { identifyUser } from "../services/api/analytics";
 import type { RootStackParamList } from "../types/navigation";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "Auth">;
@@ -35,6 +36,8 @@ export function AuthScreen({ navigation }: { navigation: Nav }) {
     try {
       if (isSignUp) await signUpWithEmail(email, password);
       else await signInWithEmail(email, password);
+      const userId = await getCurrentUserId();
+      if (userId) identifyUser(userId);
       navigation.replace("Home");
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -49,6 +52,8 @@ export function AuthScreen({ navigation }: { navigation: Nav }) {
     try {
       if (provider === "google") await signInWithGoogle();
       else await signInWithApple();
+      const userId = await getCurrentUserId();
+      if (userId) identifyUser(userId);
       navigation.replace("Home");
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));

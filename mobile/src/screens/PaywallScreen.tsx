@@ -32,6 +32,10 @@ export function PaywallScreen({ navigation }: { navigation: Nav }) {
     try {
       const success = await purchasePlan(selectedPlan);
       if (success) {
+        // Годовой тариф обычно идёт с пробным периодом (раздел 6: воронка).
+        if (selectedPlan === "yearly") {
+          track("trial_started", { plan: selectedPlan });
+        }
         track("subscription_purchased");
         navigation.replace("Home");
       } else {

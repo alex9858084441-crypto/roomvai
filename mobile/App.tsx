@@ -1,12 +1,13 @@
 import "react-native-gesture-handler";
 import "./src/locales";
 
-import React from "react";
+import React, { useEffect } from "react";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 
+import { initAnalytics } from "./src/services/api/analytics";
 import { OnboardingScreen } from "./src/screens/OnboardingScreen";
 import { ConsentScreen } from "./src/screens/ConsentScreen";
 import { HomeScreen } from "./src/screens/HomeScreen";
@@ -24,6 +25,11 @@ import type { RootStackParamList } from "./src/types/navigation";
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export default function App() {
+  useEffect(() => {
+    // Этап 9: инициализация аналитики (PostHog) при старте приложения.
+    void initAnalytics();
+  }, []);
+
   return (
     <SafeAreaProvider>
       <NavigationContainer>

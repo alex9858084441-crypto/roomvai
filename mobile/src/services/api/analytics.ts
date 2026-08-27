@@ -1,19 +1,28 @@
 /**
- * Аналитика (PostHog). Реализация наполняется на этапе 9.
- * Сейчас — стаб, логирующий события в консоль.
+ * Аналитика (PostHog). Этап 9.
+ * Реализует воронку событий из раздела 7 промпта:
+ * install → onboarding_completed → first_photo_taken → generation_started →
+ * generation_completed → paywall_shown → trial_started → subscription_purchased →
+ * subscription_cancelled
  */
 
-export const isAnalyticsConfigured = (): boolean =>
-  Boolean(process.env.EXPO_PUBLIC_POSTHOG_KEY);
+import { PostHog } from "posthog-react-native";
 
-/** Воронка событий (раздел 7 промпта). */
+const POSTHOG_KEY = process.env.EXPO_PUBLIC_POSTHOG_KEY ?? "";
+const POSTHOG_HOST = process.env.EXPO_PUBLIC_POSTHOG_HOST ?? "https://app.posthog.com";
+
+let client: PostHog | null = null;
+
+export const isAnalyticsConfigured = (): boolean => POSTHOG_KEY.length > 0;
+
+/** Воронка событий (раздел 7). */
 export const AnalyticsEvent = {
   Install: "install",
   OnboardingCompleted: "onboarding_completed",
   FirstPhotoTaken: "first_photo_taken",
   GenerationStarted: "generation_started",
   GenerationCompleted: "generation_completed",
-  PaywallViewed: "paywall_shown",
+  PaywallShown: "paywall_shown",
   TrialStarted: "trial_started",
   SubscriptionPurchased: "subscription_purchased",
   SubscriptionCancelled: "subscription_cancelled",
@@ -22,23 +31,38 @@ export const AnalyticsEvent = {
 export type AnalyticsEventName =
   (typeof AnalyticsEvent)[keyof typeof AnalyticsEvent];
 
-/** Этап 9: PostHog.capture(). */
+/** Инициализация PostHog. Вызывается один раз при старте приложения. */
+export async function initAnalytics(): Promise<void> {
+  if (!isAnalyticsConfigured()) return;
+  try {
+    client = await PostHog.setupAsync(POSTHOG_KEY, {
+      apiHost: POSTHOG_HOST,
+      autocapture: false,
+    });
+    client?.capture(AnalyticsEvent.Install);
+  } catch {
+    // Аналитика не должна крашить приложение.
+  }
+}
+
+/** Отправка события. */
 export function track(
   event: AnalyticsEventName,
   properties?: Record<string, unknown>,
 ): void {
-  // TODO этап 9: posthog.capture(event, properties)
-  if (__DEV__) {
+  if (client) {
+    client.capture(event, properties);
+  } else if (__DEV__) {
     console.log(`[analytics] ${event}`, properties ?? "");
   }
 }
 
-/** Этап 9: идентификация пользователя. */
-export function identifyUser(_userId: string): void {
-  // TODO этап 9: posthog.identify()
+/** Идентификация пользователя. */
+export function identifyUser(userId: string): void {
+  client?.identify(userId);
 }
 
-/** Этап 9: сброс при логауте. */
+/** Сброс при логауте. */
 export function resetUser(): void {
-  // TODO этап 9: posthog.reset()
+  client?.reset();
 }

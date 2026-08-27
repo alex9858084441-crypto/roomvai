@@ -58,6 +58,9 @@ class Settings:
     # URL, на который Replicate вернёт результат (должен быть публично доступен).
     webhook_base_url: str = ""
 
+    # --- Аналитика (server-side PostHog для событий из webhook'ов) ---
+    posthog_key: str = ""
+
     @property
     def max_upload_size_bytes(self) -> int:
         return self.max_upload_size_mb * 1024 * 1024
@@ -99,6 +102,7 @@ def _get_settings() -> Settings:
         free_generations_with_auth=int(os.getenv("FREE_GENERATIONS_WITH_AUTH", "1")),
         max_image_dimension=int(os.getenv("MAX_IMAGE_DIMENSION", "1536")),
         webhook_base_url=os.getenv("WEBHOOK_BASE_URL", ""),
+        posthog_key=os.getenv("POSTHOG_KEY", ""),
     )
 
 

@@ -21,6 +21,7 @@ from app.schemas import RoomType, StyleId
 from app.services import replicate as replicate_client
 from app.services import supabase_admin
 from app.styles import get_style_prompt
+from app.utils.rate_limit import generate_limiter
 
 logger = logging.getLogger(__name__)
 
@@ -59,6 +60,16 @@ async def generate(
         raise HTTPException(status_code=422, detail=f"Неизвестный стиль: {exc}") from exc
     if not style_ids:
         raise HTTPException(status_code=422, detail="Не указаны стили")
+
+    # Rate-limiting (раздел 10): защита бюджета Replicate от злоупотреблений.
+    # Ключ — user_id (если есть) либо IP клиента.
+    client_ip = request.client.host if request.client else "unknown"
+    rate_key = user_id or client_ip
+    if not generate_limiter.check(rate_key):
+        raise HTTPException(
+            status_code=429,
+            detail="Слишком много запросов. Подождите немного перед следующей генерацией.",
+        )
 
     # TODO этап 7: проверка квоты/подписки через supabase_admin.check_quota()
 

@@ -20,7 +20,7 @@ app = FastAPI(
         "API мобильного приложения RoomVAI: рестайлинг помещений "
         "в разные дизайнерские стили с помощью генеративной нейросети (Replicate + ControlNet)."
     ),
-    version="0.7.0",
+    version="0.9.0",
 )
 
 app.add_middleware(
@@ -43,7 +43,7 @@ async def root() -> dict:
     """Healthcheck / информация о сервисе."""
     return {
         "name": settings.app_name,
-        "version": "0.7.0",
+        "version": "0.9.0",
         "replicate_configured": bool(settings.replicate_api_token),
         "supabase_configured": bool(settings.supabase_url),
         "status": "ok",

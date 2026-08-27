@@ -13,6 +13,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from app.services import supabase_admin
+from app.services.analytics import capture_server_event
 
 logger = logging.getLogger(__name__)
 
@@ -79,6 +80,14 @@ async def revenuecat_webhook(
         plan=plan,
         expires_at=event.expiration_at,
     )
+
+    # Server-side аналитика (раздел 7: полная воронка).
+    if new_status == "cancelled":
+        await capture_server_event(
+            user_id, "subscription_cancelled", {"plan": plan}
+        )
+    elif new_status == "expired":
+        await capture_server_event(user_id, "subscription_expired", {"plan": plan})
 
     logger.info("RevenueCat: user=%s status=%s plan=%s", user_id, new_status, plan)
     return JSONResponse(status_code=200, content={"status": "ok"})
