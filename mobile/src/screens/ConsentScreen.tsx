@@ -1,28 +1,44 @@
 /**
- * Этап 1: экран согласия на обработку фото (GDPR / 152-ФЗ, раздел 7).
- * Этап 2: запись в БД (таблица consents).
+ * Экран согласия на обработку фото (GDPR / 152-ФЗ, раздел 7).
+ * Этап 2: запись в таблицу consents.
  */
 
-import React from "react";
+import React, { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 
 import { COLORS, SPACING } from "../constants/theme";
+import { getCurrentUserId, saveConsent } from "../services/supabase/client";
 import type { RootStackParamList } from "../types/navigation";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "Consent">;
 
+const POLICY_VERSION = "1.0";
+
 export function ConsentScreen({ navigation }: { navigation: Nav }) {
   const { t } = useTranslation();
+  const [loading, setLoading] = useState(false);
 
-  const handleAccept = () => {
-    // TODO этап 2: POST /consent
-    navigation.replace("Home");
+  const handleAccept = async () => {
+    setLoading(true);
+    try {
+      const userId = await getCurrentUserId();
+      // Согласие сохраняется даже для анонимов (user_id = null).
+      await saveConsent(userId, {
+        photoProcessingConsent: true,
+        policyVersion: POLICY_VERSION,
+      });
+    } catch {
+      // Не блокируем онбординг при ошибке сети — повторим позже.
+    } finally {
+      setLoading(false);
+      navigation.replace("Home");
+    }
   };
 
   const handleDecline = () => {
-    // Без согласия — выход из приложения.
+    // Без согласия — остаёмся на экране (выход из приложения).
   };
 
   return (
@@ -31,7 +47,11 @@ export function ConsentScreen({ navigation }: { navigation: Nav }) {
       <Text style={styles.title}>{t("consent.title")}</Text>
       <Text style={styles.body}>{t("consent.body")}</Text>
 
-      <Pressable style={styles.btnPrimary} onPress={handleAccept}>
+      <Pressable
+        style={[styles.btnPrimary, loading && styles.btnDisabled]}
+        onPress={handleAccept}
+        disabled={loading}
+      >
         <Text style={styles.btnText}>{t("consent.accept")}</Text>
       </Pressable>
       <Pressable style={styles.btnSecondary} onPress={handleDecline}>
@@ -70,6 +90,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: SPACING.sm,
   },
+  btnDisabled: { opacity: 0.5 },
   btnSecondary: { paddingVertical: 12, alignItems: "center" },
   btnText: { color: "#fff", fontWeight: "700", fontSize: 16 },
   btnTextMuted: { color: COLORS.textMuted, fontSize: 14 },
