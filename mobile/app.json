@@ -1,0 +1,32 @@
+{
+  "expo": {
+    "name": "RoomVAI",
+    "slug": "roomvai",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "backgroundColor": "#0f1115",
+      "resizeMode": "contain"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "RoomVAI использует камеру для съёмки помещения.",
+        "NSPhotoLibraryUsageDescription": "RoomVAI загружает фото помещения из галереи."
+      }
+    },
+    "android": {
+      "permissions": ["CAMERA", "READ_EXTERNAL_STORAGE"],
+      "adaptiveIcon": {
+        "backgroundColor": "#0f1115"
+      }
+    },
+    "plugins": ["expo-camera", "expo-image-picker"],
+    "extra": {
+      "eas": {
+        "projectId": "roomvai"
+      }
+    }
+  }
+}
