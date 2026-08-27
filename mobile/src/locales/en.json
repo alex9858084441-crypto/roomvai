@@ -1,0 +1,103 @@
+{
+  "app": {
+    "name": "RoomVAI"
+  },
+  "onboarding": {
+    "title1": "See the potential",
+    "desc1": "Snap a photo of your room and get it visualized in new styles",
+    "title2": "No designer needed",
+    "desc2": "Skip the cost of a designer before starting your renovation",
+    "title3": "Renovation-ready",
+    "desc3": "Compare options and pick the best one before buying materials",
+    "next": "Next",
+    "start": "Get started"
+  },
+  "home": {
+    "title": "RoomVAI",
+    "subtitle": "Photograph your space and see it in new styles",
+    "camera": "Camera",
+    "gallery": "Gallery",
+    "selectStyles": "Choose styles ({{count}}/3)",
+    "generate": "Generate",
+    "freeHint": "Free: {{remaining}} generation(s) left",
+    "history": "History"
+  },
+  "style": {
+    "scandinavian": "Scandinavian",
+    "loft": "Loft",
+    "minimalism": "Minimalism",
+    "classic": "Classic",
+    "japandi": "Japandi",
+    "industrial": "Industrial",
+    "boho": "Boho",
+    "art_deco": "Art Deco"
+  },
+  "generating": {
+    "title": "Generating…",
+    "subtitle": "This will take a few seconds",
+    "fact1": "Scandinavian style emerged in the 20th century, shaped by Northern Europe's climate.",
+    "fact2": "Loft originated in the US in the 1950s inside abandoned factories.",
+    "fact3": "Japanese minimalism teaches us to value empty space.",
+    "fact4": "Art Deco was the symbol of 1920s luxury.",
+    "fact5": "The right lighting changes a room's feel more than furniture."
+  },
+  "result": {
+    "title": "Result",
+    "original": "Original",
+    "save": "Save",
+    "share": "Share",
+    "again": "Generate again",
+    "noResults": "No results yet"
+  },
+  "paywall": {
+    "title": "RoomVAI Pro",
+    "subtitle": "Unlimited generations and all styles",
+    "weekly": "Week",
+    "monthly": "Month",
+    "yearly": "Year",
+    "yearlyBadge": "Save 60%",
+    "subscribe": "Subscribe",
+    "restore": "Restore purchase",
+    "terms": "Terms",
+    "privacy": "Privacy"
+  },
+  "history": {
+    "title": "Generation history",
+    "empty": "Your generations will appear here"
+  },
+  "settings": {
+    "title": "Settings",
+    "subscription": "Subscription",
+    "manage": "Manage subscription",
+    "support": "Support",
+    "language": "Language",
+    "logout": "Log out"
+  },
+  "consent": {
+    "title": "Photo processing consent",
+    "body": "The app processes photos of your space to generate design variants. Photos are used only for this purpose and are not shared with third parties. You can delete your data at any time.",
+    "accept": "Accept and continue",
+    "decline": "Decline"
+  },
+  "auth": {
+    "signIn": "Sign in",
+    "signUp": "Sign up",
+    "email": "Email",
+    "password": "Password",
+    "google": "Continue with Google",
+    "apple": "Continue with Apple",
+    "or": "or"
+  },
+  "common": {
+    "loading": "Loading…",
+    "error": "Something went wrong",
+    "retry": "Retry",
+    "cancel": "Cancel",
+    "noConnection": "No internet connection",
+    "cameraDenied": "Camera access denied. Enable it in settings."
+  },
+  "errors": {
+    "generationFailed": "Could not generate. Please try again.",
+    "quotaExceeded": "Free generation limit reached."
+  }
+}

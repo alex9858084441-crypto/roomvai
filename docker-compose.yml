@@ -1,0 +1,43 @@
+# Docker Compose для RoomVAI.
+# Быстрый старт (mock-режим):   docker compose up
+# С реальной генерацией (GPU):  docker compose --profile ml up
+#
+# Redis включён «на будущее» — для очереди задач (Celery). Сейчас backend
+# работает с in-memory хранилищем, но сервис Redis уже поднят и доступен.
+
+services:
+  backend:
+    build:
+      context: ./backend
+      target: ${BACKEND_TARGET:-base}
+    container_name: roomvai-backend
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./backend/.env.example
+    environment:
+      # Переопределения для контейнера
+      ML_MODE: ${ML_MODE:-mock}
+      ML_DEVICE: ${ML_DEVICE:-cpu}
+      ML_CONTROL_TYPE: ${ML_CONTROL_TYPE:-depth}
+      CORS_ORIGINS: ${CORS_ORIGINS:-*}
+    volumes:
+      - roomvai-uploads:/app/uploads
+      - roomvai-output:/app/output
+    depends_on:
+      - redis
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: roomvai-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - roomvai-redis-data:/data
+    restart: unless-stopped
+
+volumes:
+  roomvai-uploads:
+  roomvai-output:
+  roomvai-redis-data:

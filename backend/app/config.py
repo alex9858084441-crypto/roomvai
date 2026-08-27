@@ -30,6 +30,12 @@ class Settings:
     ml_device: str = "cpu"
     ml_num_inference_steps: int = 30
     ml_strength: float = 0.75
+    # Тип контрольного сигнала для ControlNet: depth | canny | seg
+    ml_control_type: str = "depth"
+    # Разрешение генерации (сторона квадрата).
+    ml_image_size: int = 512
+    # Число вариантов, генерируемых параллельно (1 — последовательно).
+    ml_max_concurrency: int = 1
 
     # Хранилище результатов
     max_upload_size_mb: int = 20
@@ -61,6 +67,9 @@ def _get_settings() -> Settings:
         ml_device=os.getenv("ML_DEVICE", "cpu"),
         ml_num_inference_steps=int(os.getenv("ML_NUM_INFERENCE_STEPS", "30")),
         ml_strength=float(os.getenv("ML_STRENGTH", "0.75")),
+        ml_control_type=os.getenv("ML_CONTROL_TYPE", "depth"),
+        ml_image_size=int(os.getenv("ML_IMAGE_SIZE", "512")),
+        ml_max_concurrency=int(os.getenv("ML_MAX_CONCURRENCY", "1")),
         max_upload_size_mb=int(os.getenv("MAX_UPLOAD_SIZE_MB", "20")),
     )
 

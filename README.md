@@ -25,7 +25,7 @@ RoomVAI/
 | Backend API | FastAPI (Python)                   | Загрузка изображений, оркестрация генерации |
 | ML / AI     | Stable Diffusion + ControlNet (i2i)| Рестайлинг помещения с сохранением геометрии|
 
-Принцип генерации: исходное фото → сегментация/карта глубины (ControlNet) → image-to-image с промптом стиля → результат, повторяющий геометрию комнаты.
+Принцип генерации: исходное фото → контрольный сигнал (карта глубины/границы) → image-to-image с промптом стиля → результат, повторяющий геометрию комнаты.
 
 ## Быстрый старт
 
@@ -43,11 +43,39 @@ cd backend
 python -m venv .venv
 source .venv/bin/activate        # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-cp .env.example .env             # задайте ключи API модели при необходимости
+cp .env.example .env             # задайте ML_MODE и параметры генерации
 uvicorn app.main:app --reload
 ```
 
 Документация API: `http://localhost:8000/docs`
+
+#### Реальная генерация (ML-режим `sd`)
+
+По умолчанию backend работает в `ML_MODE=mock` — возвращает плейсхолдеры.
+Для генерации нейросетью установите тяжёлые зависимости и переключите режим:
+
+```bash
+pip install -r requirements.txt -r requirements-ml.txt
+# в .env: ML_MODE=sd, ML_DEVICE=cpu (или cuda при наличии GPU)
+```
+
+Тип контрольного сигнала задаётся через `ML_CONTROL_TYPE`:
+
+- `depth` — карта глубины (MiDaS), по умолчанию; сохраняет объём помещения
+- `canny` — границы Canny; жёстко фиксирует контуры стен и проёмов
+- `seg` — семантическая сегментация (OneFormer/ADE20K)
+
+#### Docker
+
+```bash
+# mock-режим (быстро, без нейросети)
+docker compose up
+
+# реальная генерация (много весит, нужен интернет для сборки образа)
+ML_MODE=sd BACKEND_TARGET=ml docker compose up
+```
+
+Backend будет доступен на `http://localhost:8000`, Redis — на `localhost:6379`.
 
 ### Mobile
 
@@ -68,11 +96,17 @@ backend/
 │   ├── main.py              # точка входа FastAPI
 │   ├── config.py            # настройки (env)
 │   ├── schemas.py           # Pydantic-модели
+│   ├── styles.py            # каталог стилей с промптами
 │   ├── routers/             # HTTP-эндпоинты
-│   ├── services/            # бизнес-логика + ML-интеграция
+│   ├── services/
+│   │   ├── generator.py         # генерация (mock/sd)
+│   │   ├── preprocessing.py     # контрольный сигнал (depth/canny/seg)
+│   │   └── jobs.py              # хранилище задач
 │   └── utils/               # утилиты (обработка изображений)
 ├── assets/styles_preview/   # превью-картинки стилей
-└── tests/
+├── tests/
+├── Dockerfile               # base (mock) + ml-стейдж
+└── requirements-ml.txt      # тяжёлые ML-зависимости
 
 mobile/
 ├── src/

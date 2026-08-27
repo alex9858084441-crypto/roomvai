@@ -1,92 +1,73 @@
-import React from "react";
-import {
-  Image,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+/**
+ * Этап 1: навигационная заглушка результата.
+ * Этап 6: свайпер между оригиналом и вариантами + действия.
+ */
 
-import { ProgressOverlay } from "../components/ProgressOverlay";
-import { COLORS, RADIUS, SPACING } from "../constants/theme";
-import { useJobPolling } from "../hooks/useJobPolling";
-import { assetUrl } from "../services/api";
+import React from "react";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+import { useTranslation } from "react-i18next";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+
+import { COLORS, RADIUS, SPACING } from "../constants/theme";
 import type { RootStackParamList } from "../types/navigation";
 
-type ResultNav = NativeStackNavigationProp<RootStackParamList, "Result">;
+type Nav = NativeStackNavigationProp<RootStackParamList, "Result">;
 
-interface ResultScreenProps {
-  navigation: ResultNav;
-  route: { params: { jobId: string; originalImageUri: string } };
-}
+export function ResultScreen({
+  navigation,
+  route,
+}: {
+  navigation: Nav;
+  route: { params: { generationId: string; originalImageUri: string } };
+}) {
+  const { t } = useTranslation();
+  const { originalImageUri } = route.params;
 
-export function ResultScreen({ route }: ResultScreenProps) {
-  const { jobId, originalImageUri } = route.params;
-  const { job, error, isDone } = useJobPolling(jobId);
-
-  const completed = job?.results.filter((r) => r.image_url) ?? [];
+  // Этап 6: свайпер (ScrollView pagingEnabled / react-native-reanimated)
+  void originalImageUri;
 
   return (
-    <ScrollView style={res.container} contentContainerStyle={{ paddingBottom: 40 }}>
-      <View style={res.originalWrap}>
-        <Text style={res.label}>Оригинал</Text>
-        <Image source={{ uri: originalImageUri }} style={res.original} />
+    <View style={styles.wrap}>
+      <View style={styles.swiperPlaceholder} />
+      <View style={styles.actions}>
+        <Pressable style={styles.btn} onPress={() => undefined}>
+          <Text style={styles.btnText}>💾 {t("result.save")}</Text>
+        </Pressable>
+        <Pressable style={styles.btn} onPress={() => undefined}>
+          <Text style={styles.btnText}>📤 {t("result.share")}</Text>
+        </Pressable>
+        <Pressable
+          style={styles.btnSecondary}
+          onPress={() => navigation.navigate("Home")}
+        >
+          <Text style={styles.btnTextDark}>🔄 {t("result.again")}</Text>
+        </Pressable>
       </View>
-
-      {error && <Text style={res.error}>{error}</Text>}
-
-      {completed.length > 0 && (
-        <>
-          <Text style={res.sectionTitle}>Варианты ({completed.length})</Text>
-          {completed.map((r) => (
-            <View key={r.style} style={res.card}>
-              <Image source={{ uri: assetUrl(r.image_url)! }} style={res.resultImg} />
-              <Text style={res.styleName}>{r.style}</Text>
-            </View>
-          ))}
-        </>
-      )}
-
-      {job?.status === "failed" && (
-        <Text style={res.error}>Генерация не удалась. Попробуйте ещё раз.</Text>
-      )}
-
-      {!isDone && (
-        <ProgressOverlay progress={job?.progress ?? 0} status={job?.status ?? "pending"} />
-      )}
-    </ScrollView>
+    </View>
   );
 }
 
-const res = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.bg, padding: SPACING.md },
-  originalWrap: { marginBottom: SPACING.md },
-  label: { color: COLORS.textMuted, fontSize: 12, marginBottom: 4 },
-  original: {
-    width: "100%",
-    height: 200,
+const styles = StyleSheet.create({
+  wrap: { flex: 1, backgroundColor: COLORS.bg, padding: SPACING.md },
+  swiperPlaceholder: {
+    flex: 1,
+    backgroundColor: COLORS.surfaceAlt,
     borderRadius: RADIUS.lg,
-  },
-  sectionTitle: { color: COLORS.text, fontSize: 18, fontWeight: "700", marginBottom: SPACING.sm },
-  card: {
-    backgroundColor: COLORS.surface,
-    borderRadius: RADIUS.lg,
-    padding: SPACING.sm,
     marginBottom: SPACING.md,
   },
-  resultImg: {
-    width: "100%",
-    height: 260,
+  actions: { gap: SPACING.sm },
+  btn: {
+    backgroundColor: COLORS.primary,
     borderRadius: RADIUS.md,
+    paddingVertical: 14,
+    alignItems: "center",
   },
-  styleName: {
-    color: COLORS.text,
-    fontSize: 15,
-    fontWeight: "600",
-    marginTop: SPACING.sm,
-    textTransform: "capitalize",
+  btnSecondary: {
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.md,
+    paddingVertical: 14,
+    alignItems: "center",
   },
-  error: { color: COLORS.error, fontSize: 13, marginBottom: SPACING.sm },
+  btnText: { color: "#fff", fontWeight: "600", fontSize: 15 },
+  btnTextDark: { color: COLORS.text, fontWeight: "600", fontSize: 15 },
 });

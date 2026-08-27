@@ -1,0 +1,17 @@
+# ML-зависимости для режима ML_MODE=sd (реальная генерация).
+# Тяжёлые пакеты; ставятся отдельно от базового requirements.txt:
+#   pip install -r requirements.txt -r requirements-ml.txt
+#
+# Версии torch/diffusers зависят от целевой платформы (CPU/GPU).
+# Для GPU см. https://pytorch.org/get-started/locally/
+
+torch>=2.2
+torchvision>=0.17
+diffusers>=0.27
+transformers>=4.40
+accelerate>=0.28
+safetensors>=0.4
+
+# Препроцессинг границ Canny
+opencv-python-headless>=4.9
+numpy>=1.26

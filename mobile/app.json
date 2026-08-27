@@ -2,7 +2,7 @@
   "expo": {
     "name": "RoomVAI",
     "slug": "roomvai",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "splash": {
@@ -13,16 +13,28 @@
       "supportsTablet": true,
       "infoPlist": {
         "NSCameraUsageDescription": "RoomVAI использует камеру для съёмки помещения.",
-        "NSPhotoLibraryUsageDescription": "RoomVAI загружает фото помещения из галереи."
+        "NSPhotoLibraryUsageDescription": "RoomVAI загружает фото помещения из галереи.",
+        "NSPhotoLibraryAddUsageDescription": "RoomVAI сохраняет сгенерированные изображения в галерею.",
+        "NSUserTrackingUsageDescription": "Используется для аналитики и улучшения приложения."
       }
     },
     "android": {
-      "permissions": ["CAMERA", "READ_EXTERNAL_STORAGE"],
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#0f1115"
       }
     },
-    "plugins": ["expo-camera", "expo-image-picker"],
+    "plugins": [
+      "expo-camera",
+      "expo-image-picker",
+      "expo-image-manipulator",
+      "expo-secure-store",
+      "expo-localization"
+    ],
     "extra": {
       "eas": {
         "projectId": "roomvai"

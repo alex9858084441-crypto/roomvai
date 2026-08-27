@@ -7,11 +7,13 @@ export const COLORS = {
   primary: "#6c8cff",
   primaryDark: "#4a6bd6",
   accent: "#ffb86b",
-  text: "#f2f3f5",
-  textMuted: "#8b909a",
   success: "#4ade80",
   error: "#f87171",
+  warning: "#fbbf24",
+  text: "#f2f3f5",
+  textMuted: "#8b909a",
   border: "#2a2f3a",
+  overlay: "rgba(0,0,0,0.7)",
 } as const;
 
 export const SPACING = {
@@ -20,6 +22,7 @@ export const SPACING = {
   md: 16,
   lg: 24,
   xl: 32,
+  xxl: 48,
 } as const;
 
 export const RADIUS = {
@@ -27,4 +30,5 @@ export const RADIUS = {
   md: 12,
   lg: 16,
   xl: 24,
+  full: 9999,
 } as const;
