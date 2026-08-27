@@ -2,10 +2,10 @@
  * API-клиент к backend (FastAPI). Backend проксирует запросы к Replicate
  * и Supabase — ключ Replicate НИКОГДА не покидает сервер (раздел 10).
  *
- * Реализация наполняется на этапах 3-5. Сейчас — стаб + утилиты URL.
+ * Этап 4: POC — один результат. Этап 5 — мультистили + параллельность.
  */
 
-import type { Generation, StyleId, RoomType } from "../../types";
+import type { Generation, RoomType, StyleId, SubscriptionState } from "../../types";
 
 const API_URL =
   process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8000";
@@ -27,33 +27,68 @@ export async function fetchStyles(): Promise<import("../../types").StyleInfo[]> 
   return res.json();
 }
 
-/** Этап 3-4: запуск генерации (фото + стили → generationId). */
+/**
+ * Запуск генерации. Фото уже загружено в Supabase Storage на этапе 3 —
+ * сюда передаём URL/путь. Backend запускает Replicate prediction с webhook.
+ */
 export async function startGeneration(
-  _imageUri: string,
-  _styles: StyleId[],
-  _roomType: RoomType,
-): Promise<Generation> {
-  // TODO этап 4: POST /generate с FormData (сжатое фото)
-  // TODO этап 5: параллельная генерация через Promise.all на бэкенде
-  throw new Error("startGeneration: реализуется на этапе 4");
+  imageUrl: string,
+  styles: StyleId[],
+  roomType: RoomType,
+  userId?: string | null,
+): Promise<{ generationId: string; status: string }> {
+  const params = new URLSearchParams({
+    image_url: imageUrl,
+    styles: styles.join(","),
+    room_type: roomType,
+  });
+  if (userId) params.set("user_id", userId);
+
+  const res = await fetch(apiUrl(`/generate?${params.toString()}`), {
+    method: "POST",
+    headers: { Accept: "application/json" },
+  });
+
+  if (!res.ok) {
+    const detail = await res.text();
+    throw new Error(`Generation failed (${res.status}): ${detail}`);
+  }
+  return res.json().then((d) => ({
+    generationId: d.generation_id,
+    status: d.status,
+  }));
 }
 
-/** Этап 4: статус генерации (вместо polling — webhook, fallback backoff). */
-export async function fetchGeneration(
-  _generationId: string,
-): Promise<Generation> {
-  // TODO этап 4: GET /generations/:id
-  throw new Error("fetchGeneration: реализуется на этапе 4");
+/**
+ * Опрос статуса генерации. Основной механизм — webhook от Replicate;
+ * этот метод — для отображения статуса клиентом (fallback: exponential backoff).
+ */
+export async function fetchGeneration(generationId: string): Promise<Generation> {
+  const res = await fetch(apiUrl(`/generations/${generationId}`));
+  if (!res.ok) throw new Error(`Generation not found (${res.status})`);
+  const data = await res.json();
+  return {
+    id: data.id,
+    status: data.status,
+    results: (data.results ?? []).map((r: any) => ({
+      id: r.id,
+      style: r.style,
+      status: r.status,
+      result_image_url: r.result_image_url,
+      cost_usd: r.cost_usd,
+      error: r.error,
+    })),
+  };
 }
 
 /** Этап 6: история генераций. */
 export async function fetchGenerations(): Promise<Generation[]> {
-  // TODO этап 6: GET /generations
+  // TODO этап 6: через Supabase-клиент (fetchHistory)
   return [];
 }
 
 /** Этап 7: серверная валидация подписки. */
-export async function fetchSubscription(): Promise<import("../../types").SubscriptionState> {
+export async function fetchSubscription(): Promise<SubscriptionState> {
   // TODO этап 7: GET /subscription
   return { status: "none", entitlement: null };
 }

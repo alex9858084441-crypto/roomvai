@@ -6,7 +6,6 @@ import logging
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 
 from app.config import ensure_dirs, settings
 from app.routers import generation, styles
@@ -19,9 +18,9 @@ app = FastAPI(
     title=settings.app_name,
     description=(
         "API мобильного приложения RoomVAI: рестайлинг помещений "
-        "в разные дизайнерские стили с помощью генеративной нейросети."
+        "в разные дизайнерские стили с помощью генеративной нейросети (Replicate + ControlNet)."
     ),
-    version="0.1.0",
+    version="0.4.0",
 )
 
 app.add_middleware(
@@ -32,9 +31,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Раздача сгенерированных изображений.
-app.mount("/output", StaticFiles(directory=settings.output_dir), name="output")
-
 # Роутеры.
 app.include_router(styles.router)
 app.include_router(generation.router)
@@ -42,11 +38,12 @@ app.include_router(generation.router)
 
 @app.get("/", tags=["health"])
 async def root() -> dict:
-    """ Healthcheck / информация о сервисе. """
+    """Healthcheck / информация о сервисе."""
     return {
         "name": settings.app_name,
-        "version": "0.1.0",
-        "ml_mode": settings.ml_mode,
+        "version": "0.4.0",
+        "replicate_configured": bool(settings.replicate_api_token),
+        "supabase_configured": bool(settings.supabase_url),
         "status": "ok",
     }
 
