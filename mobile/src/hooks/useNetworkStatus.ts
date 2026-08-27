@@ -3,19 +3,21 @@
  */
 
 import { useEffect, useState } from "react";
-import { AppState, AppStateStatus, NetInfo } from "react-native";
+import { AppState, AppStateStatus } from "react-native";
 
 export function useNetworkStatus() {
   const [isOnline, setIsOnline] = useState(true);
 
   useEffect(() => {
-    // TODO: @react-native-community/netinfo для продакшена.
+    // Для продакшена рекомендуется @react-native-community/netinfo.
     // Здесь — упрощённая проверка через fetch к health-эндпоинту.
     let mounted = true;
 
     const check = async () => {
       try {
-        const url = (process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8000") + "/health";
+        const url =
+          (process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8000") +
+          "/health";
         const res = await fetch(url, { method: "GET" });
         if (mounted) setIsOnline(res.ok);
       } catch {
@@ -25,7 +27,7 @@ export function useNetworkStatus() {
 
     check();
     const interval = setInterval(check, 15000);
-    const subscription = (AppState as any).addEventListener?.(
+    const subscription = AppState.addEventListener(
       "change",
       (_state: AppStateStatus) => check(),
     );
@@ -33,7 +35,7 @@ export function useNetworkStatus() {
     return () => {
       mounted = false;
       clearInterval(interval);
-      subscription?.remove?.();
+      subscription.remove();
     };
   }, []);
 
