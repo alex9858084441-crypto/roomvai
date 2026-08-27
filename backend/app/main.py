@@ -8,7 +8,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import ensure_dirs, settings
-from app.routers import generation, styles
+from app.routers import generation, revenuecat, styles, subscription
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
 
@@ -20,7 +20,7 @@ app = FastAPI(
         "API мобильного приложения RoomVAI: рестайлинг помещений "
         "в разные дизайнерские стили с помощью генеративной нейросети (Replicate + ControlNet)."
     ),
-    version="0.4.0",
+    version="0.7.0",
 )
 
 app.add_middleware(
@@ -34,6 +34,8 @@ app.add_middleware(
 # Роутеры.
 app.include_router(styles.router)
 app.include_router(generation.router)
+app.include_router(revenuecat.router)
+app.include_router(subscription.router)
 
 
 @app.get("/", tags=["health"])
@@ -41,7 +43,7 @@ async def root() -> dict:
     """Healthcheck / информация о сервисе."""
     return {
         "name": settings.app_name,
-        "version": "0.4.0",
+        "version": "0.7.0",
         "replicate_configured": bool(settings.replicate_api_token),
         "supabase_configured": bool(settings.supabase_url),
         "status": "ok",
