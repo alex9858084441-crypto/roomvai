@@ -1,5 +1,6 @@
 /**
  * Этап 8: экран настроек. Этап 7: управление подпиской.
+ * Этап 10: переключатель языка с сохранением выбора.
  */
 
 import React from "react";
@@ -10,12 +11,33 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { COLORS, RADIUS, SPACING } from "../constants/theme";
 import { signOut } from "../services/supabase/client";
 import { resetUser } from "../services/api/analytics";
+import { changeLanguage, getCurrentLanguage } from "../locales";
+import type { AppLanguage } from "../locales";
 import type { RootStackParamList } from "../types/navigation";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "Settings">;
 
+const LANG_LABELS: Record<AppLanguage, string> = {
+  ru: "Русский",
+  en: "English",
+};
+
 export function SettingsScreen({ navigation }: { navigation: Nav }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const currentLang = (i18n.language as AppLanguage) ?? getCurrentLanguage();
+
+  const handleLanguagePress = () => {
+    Alert.alert(
+      t("settings.language"),
+      undefined,
+      [
+        { text: LANG_LABELS.ru, onPress: () => changeLanguage("ru") },
+        { text: LANG_LABELS.en, onPress: () => changeLanguage("en") },
+        { text: t("common.cancel"), style: "cancel" },
+      ],
+      { cancelable: true },
+    );
+  };
 
   const handleLogout = async () => {
     try {
@@ -42,9 +64,9 @@ export function SettingsScreen({ navigation }: { navigation: Nav }) {
         <Text style={styles.chevron}>›</Text>
       </Pressable>
 
-      <Pressable style={styles.row} onPress={() => undefined}>
+      <Pressable style={styles.row} onPress={handleLanguagePress}>
         <Text style={styles.rowText}>{t("settings.language")}</Text>
-        <Text style={styles.chevron}>›</Text>
+        <Text style={styles.chevron}>{LANG_LABELS[currentLang]}</Text>
       </Pressable>
 
       <Pressable style={styles.row} onPress={handleLogout}>
@@ -68,5 +90,5 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   rowText: { color: COLORS.text, fontSize: 16 },
-  chevron: { color: COLORS.textMuted, fontSize: 20 },
+  chevron: { color: COLORS.textMuted, fontSize: 16 },
 });

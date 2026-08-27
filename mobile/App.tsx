@@ -8,6 +8,7 @@ import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 
 import { initAnalytics } from "./src/services/api/analytics";
+import { loadSavedLanguage } from "./src/locales";
 import { OnboardingScreen } from "./src/screens/OnboardingScreen";
 import { ConsentScreen } from "./src/screens/ConsentScreen";
 import { HomeScreen } from "./src/screens/HomeScreen";
@@ -28,6 +29,8 @@ export default function App() {
   useEffect(() => {
     // Этап 9: инициализация аналитики (PostHog) при старте приложения.
     void initAnalytics();
+    // Этап 10: применение сохранённого выбора языка.
+    void loadSavedLanguage();
   }, []);
 
   return (

@@ -10,7 +10,9 @@
     "title3": "Renovation-ready",
     "desc3": "Compare options and pick the best one before buying materials",
     "next": "Next",
-    "start": "Get started"
+    "start": "Get started",
+    "before": "Before",
+    "after": "After"
   },
   "home": {
     "title": "RoomVAI",
@@ -47,7 +49,8 @@
     "save": "Save",
     "share": "Share",
     "again": "Generate again",
-    "noResults": "No results yet"
+    "noResults": "No results yet",
+    "saved": "Saved to gallery"
   },
   "paywall": {
     "title": "RoomVAI Pro",

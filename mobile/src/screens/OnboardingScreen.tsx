@@ -67,12 +67,12 @@ export function OnboardingScreen({ navigation }: { navigation: Nav }) {
         <View style={styles.wowExample}>
           <View style={styles.wowFrame}>
             <Text style={styles.wowEmoji}>{slide.emoji}</Text>
-            <Text style={styles.wowLabel}>До</Text>
+            <Text style={styles.wowLabel}>{t("onboarding.before")}</Text>
           </View>
           <Text style={styles.arrow}>→</Text>
           <View style={[styles.wowFrame, styles.wowFrameAfter]}>
             <Text style={styles.wowEmoji}>{slide.emoji}</Text>
-            <Text style={styles.wowLabel}>После</Text>
+            <Text style={styles.wowLabel}>{t("onboarding.after")}</Text>
           </View>
         </View>
 

@@ -73,7 +73,7 @@ export function ResultScreen({
         return;
       }
       await MediaLibrary.saveToLibraryAsync(slide.uri);
-      Alert.alert("✓", "");
+      Alert.alert("✓", t("result.saved"));
     } catch (e) {
       Alert.alert(t("common.error"), e instanceof Error ? e.message : "");
     }
