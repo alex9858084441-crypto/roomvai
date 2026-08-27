@@ -10,31 +10,35 @@ RoomVAI — мобильное приложение, которое позвол
 
 ## Архитектура
 
-Монорепозиторий из двух частей:
+Монорепозиторий из трёх частей:
 
 ```
 RoomVAI/
-├── backend/   # FastAPI + генеративная нейросеть (Python)
-├── mobile/    # React Native + Expo (кроссплатформенно: iOS / Android)
-└── docs/      # документация и архитектурные решения
+├── backend/   # FastAPI — прокси к Replicate + Supabase (ключи только на сервере)
+├── mobile/    # React Native + Expo (iOS / Android)
+└── docs/      # архитектура и дорожная карта
 ```
 
 | Слой        | Технология                         | Назначение                                  |
 | ----------- | ---------------------------------- | ------------------------------------------- |
-| Mobile      | React Native + Expo                | Камера, UI, загрузка фото, просмотр стилей  |
-| Backend API | FastAPI (Python)                   | Загрузка изображений, оркестрация генерации |
-| ML / AI     | Stable Diffusion + ControlNet (i2i)| Рестайлинг помещения с сохранением геометрии|
+| Mobile      | React Native + Expo + TypeScript   | Камера, UI, выбор стилей, просмотр, paywall |
+| Backend API | FastAPI (Python)                   | Оркестрация генерации, rate-limit, webhooks |
+| AI          | Replicate API (ControlNet + SD)    | Рестайлинг с сохранением геометрии комнаты  |
+| DB/Auth     | Supabase (PostgreSQL)              | Auth + DB + Storage в одном сервисе         |
+| Платежи     | RevenueCat                         | Подписки Apple/Google + серверная валидация |
+| Аналитика   | PostHog                            | Полная воронка событий                      |
 
-Принцип генерации: исходное фото → контрольный сигнал (карта глубины/границы) → image-to-image с промптом стиля → результат, повторяющий геометрию комнаты.
+Принцип генерации: исходное фото → ControlNet (границы/глубина) →
+Stable Diffusion img2img с промптом стиля → результат, повторяющий геометрию комнаты.
+Подробности — в `docs/ARCHITECTURE.md`.
 
 ## Быстрый старт
 
 ### Требования
 
 - Python ≥ 3.11
-- Node.js ≥ 20 (для мобильного приложения)
-- Expo CLI (`npm i -g expo-cli`)
-- (опционально) Docker — для запуска backend в контейнере
+- Node.js ≥ 20 + Expo CLI
+- Аккаунты: Supabase, Replicate, RevenueCat, PostHog
 
 ### Backend
 
@@ -43,48 +47,37 @@ cd backend
 python -m venv .venv
 source .venv/bin/activate        # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-cp .env.example .env             # задайте ML_MODE и параметры генерации
+cp .env.example .env             # задайте ключи Supabase, Replicate, PostHog
 uvicorn app.main:app --reload
 ```
 
 Документация API: `http://localhost:8000/docs`
 
-#### Реальная генерация (ML-режим `sd`)
+Переменные окружения (см. `backend/.env.example`):
 
-По умолчанию backend работает в `ML_MODE=mock` — возвращает плейсхолдеры.
-Для генерации нейросетью установите тяжёлые зависимости и переключите режим:
+- `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` — доступ к БД и Storage
+- `REPLICATE_API_TOKEN` — ключ Replicate (только на бэкенде!)
+- `WEBHOOK_BASE_URL` — публичный URL для callback'ов Replicate
+- `POSTHOG_KEY` — server-side аналитика из webhook'ов
+- `FREE_GENERATIONS_NO_AUTH=1`, `FREE_GENERATIONS_WITH_AUTH=1` — лимиты free-тарифа
 
-```bash
-pip install -r requirements.txt -r requirements-ml.txt
-# в .env: ML_MODE=sd, ML_DEVICE=cpu (или cuda при наличии GPU)
-```
-
-Тип контрольного сигнала задаётся через `ML_CONTROL_TYPE`:
-
-- `depth` — карта глубины (MiDaS), по умолчанию; сохраняет объём помещения
-- `canny` — границы Canny; жёстко фиксирует контуры стен и проёмов
-- `seg` — семантическая сегментация (OneFormer/ADE20K)
-
-#### Docker
-
-```bash
-# mock-режим (быстро, без нейросети)
-docker compose up
-
-# реальная генерация (много весит, нужен интернет для сборки образа)
-ML_MODE=sd BACKEND_TARGET=ml docker compose up
-```
-
-Backend будет доступен на `http://localhost:8000`, Redis — на `localhost:6379`.
+Схему БД примените в Supabase Dashboard → SQL Editor: `backend/db/schema.sql`.
 
 ### Mobile
 
 ```bash
 cd mobile
 npm install
-cp .env.example .env             # укажите URL backend (EXPO_PUBLIC_API_URL)
+cp .env.example .env             # укажите URL backend и публичные ключи
 npx expo start
 ```
+
+Переменные окружения (см. `mobile/.env.example`):
+
+- `EXPO_PUBLIC_API_URL` — URL backend (эмулятор Android: `http://10.0.2.2:8000`)
+- `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY` — публичные ключи
+- `EXPO_PUBLIC_REVENUECAT_API_KEY` — публичный ключ RevenueCat
+- `EXPO_PUBLIC_POSTHOG_KEY`, `EXPO_PUBLIC_POSTHOG_HOST` — клиентская аналитика
 
 Отсканируйте QR-код приложением Expo Go (iOS / Android).
 
@@ -94,35 +87,39 @@ npx expo start
 backend/
 ├── app/
 │   ├── main.py              # точка входа FastAPI
-│   ├── config.py            # настройки (env)
+│   ├── config.py            # настройки из env
 │   ├── schemas.py           # Pydantic-модели
-│   ├── styles.py            # каталог стилей с промптами
-│   ├── routers/             # HTTP-эндпоинты
+│   ├── styles.py            # 8 стилей с SD-промптами
+│   ├── routers/             # generation, revenuecat, subscription, styles
 │   ├── services/
-│   │   ├── generator.py         # генерация (mock/sd)
-│   │   ├── preprocessing.py     # контрольный сигнал (depth/canny/seg)
-│   │   └── jobs.py              # хранилище задач
-│   └── utils/               # утилиты (обработка изображений)
-├── assets/styles_preview/   # превью-картинки стилей
-├── tests/
-├── Dockerfile               # base (mock) + ml-стейдж
-└── requirements-ml.txt      # тяжёлые ML-зависимости
+│   │   ├── replicate.py         # клиент Replicate API + оценка стоимости
+│   │   ├── supabase_admin.py    # service_role: CRUD, Storage, квоты
+│   │   └── analytics.py         # server-side PostHog
+│   └── utils/
+│       ├── images.py            # обработка изображений
+│       └── rate_limit.py        # token bucket rate-limiter
+├── db/schema.sql           # полная схема БД + RLS + триггеры + buckets
+└── tests/
 
 mobile/
 ├── src/
-│   ├── screens/             # экраны приложения
-│   ├── components/          # переиспользуемые компоненты
-│   ├── services/            # API-клиент
-│   ├── hooks/               # кастомные хуки
-│   ├── constants/           # стили, цвета, список стилей
-│   └── types/               # TypeScript-типы
+│   ├── screens/            # 11 экранов (onboarding → result → history)
+│   ├── components/         # переиспользуемые UI-компоненты
+│   ├── services/
+│   │   ├── api/               # клиент к backend + аналитика
+│   │   ├── supabase/          # Auth + DB + Storage
+│   │   └── revenuecat/        # обёртка над платежами
+│   ├── hooks/              # useSubscription, useNetworkStatus
+│   ├── constants/          # тема, тарифы, планы
+│   ├── locales/            # i18n: ru.json, en.json
+│   ├── types/              # TypeScript-типы
+│   └── utils/              # компрессия изображений
 └── App.tsx
 ```
 
 ## Статус
 
-🚧 Проект в стадии инициализации. Следующие шаги — см. `docs/ROADMAP.md`.
+✅ MVP готов: все 10 этапов разработки завершены (см. `docs/ROADMAP.md`).
 
-## Лицензия
-
-Proprietary / All rights reserved.
+Далее — подключение нативных SDK (RevenueCat, PostHog, NetInfo) через
+`expo prebuild`, указание реальных ключей и сборка через EAS Build.
