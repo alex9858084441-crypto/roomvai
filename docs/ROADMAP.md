@@ -61,6 +61,10 @@
       NetInfo (`@react-native-community/netinfo`), `expo-build-properties`
 - [ ] Указать реальные ключи в `.env` (backend + mobile)
 - [ ] Настроить публичный `WEBHOOK_BASE_URL` для callback'ов Replicate
+- [x] Указать реальные ключи в `.env` (backend + mobile)
+- [x] Настроить публичный `WEBHOOK_BASE_URL` для callback'ов Replicate
+- [x] Деплой бэкенда на Render (https://roomvai.onrender.com)
+- [x] `REPLICATE_API_TOKEN` установлен, `ML_MODE=replicate`
 - [x] Выбрать модель ControlNet на Replicate (`lllyasviel/sd-controlnet-depth`)
 
 ### Публикация
