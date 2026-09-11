@@ -2,6 +2,8 @@
 # Быстрый старт (mock-режим):   docker compose up
 # Продакшен (Replicate):        ML_MODE=replicate docker compose up
 #
+# Production-образ:              BACKEND_TARGET=production docker compose up
+#
 # Redis включён «на будущее» — для очереди задач (Celery). Сейчас backend
 # работает с in-memory хранилищем, но сервис Redis уже поднят и доступен.
 

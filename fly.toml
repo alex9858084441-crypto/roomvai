@@ -1,0 +1,37 @@
+# ============================================================
+# RoomVAI Backend — Fly.io
+# ============================================================
+# Установка:  curl -L https://fly.io/install.sh | sh
+# Деплой:     fly deploy
+#            fly secrets set SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=...
+#            fly secrets set REPLICATE_API_TOKEN=... WEBHOOK_BASE_URL=https://roomvai.fly.dev
+
+app = "roomvai-backend"
+primary_region = "ams"   # Amsterdam — близко к EU
+
+[build]
+  dockerfile = "backend/Dockerfile"
+  context = "backend"
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 1   # держим включённой — вебхуки Replicate всегда доходят
+
+  [http_service.concurrency]
+    type = "requests"
+    hard_limit = 50
+    soft_limit = 25
+
+[[http_service.checks]]
+  interval = "30s"
+  timeout = "5s"
+  grace_period = "10s"
+  method = "GET"
+  path = "/health"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

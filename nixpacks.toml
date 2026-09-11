@@ -1,0 +1,24 @@
+# ============================================================
+# RoomVAI Backend — Railway.app
+# ============================================================
+# Деплой:  railway login
+#          railway init
+#          railway up
+#          railway variables set ML_MODE=replicate
+#          railway variables set SUPABASE_URL=...
+#          railway variables set SUPABASE_SERVICE_ROLE_KEY=...
+#          railway variables set REPLICATE_API_TOKEN=...
+#          railway variables set WEBHOOK_BASE_URL=https://roomvai.up.railway.app
+#          railway variables set POSTHOG_KEY=...
+#
+# Railway автоматически определяет Dockerfile и билдит из него.
+# Файл nixpacks.toml позволяет тонко настроить билд при необходимости.
+
+[build]
+  dockerfile = "backend/Dockerfile"
+
+[deploy]
+  healthcheckPath = "/health"
+  healthcheckTimeout = 30
+  restartPolicyType = "ON_FAILURE"
+  restartPolicyMaxRetries = 3

@@ -35,6 +35,14 @@ EXPOSE 8000
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
 
 
+# --- Production-стейдж: без тестовых зависимостей, workers=2 ---
+# Сборка: docker build --target production -t roomvai-backend:prod .
+FROM base AS production
+RUN pip uninstall -y pytest pytest-asyncio || true
+ENV ML_MODE=replicate
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]
+
+
 # --- ML-стейдж: добавляет тяжёлые зависимости для реальной генерации ---
 # Сборка: docker build --target ml -t roomvai-backend:ml .
 FROM base AS ml

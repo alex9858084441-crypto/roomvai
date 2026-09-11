@@ -75,3 +75,10 @@
 - [ ] Редактирование отдельных зон маской (inpainting)
 - [ ] A/B-тесты paywall и онбординга
 - [ ] Referral-программа
+
+### Деплой
+- [x] Конфиги деплоя: `render.yaml`, `fly.toml`, `nixpacks.toml` (Railway)
+- [x] Production-стейдж в Dockerfile (без тестовых зависимостей, workers=2)
+- [x] Инструкция деплоя `docs/DEPLOY.md`
+- [ ] Деплой на выбранную платформу
+- [ ] Установка `WEBHOOK_BASE_URL` после деплоя

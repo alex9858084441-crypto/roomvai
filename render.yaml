@@ -1,0 +1,35 @@
+# ============================================================
+# RoomVAI Backend — Render.com
+# ============================================================
+# Файл не обязателен (можно настроить через Dashboard),
+# но обеспечивает воспроизводимость деплоя.
+
+services:
+  - type: web
+    name: roomvai-backend
+    runtime: python
+    region: frankfurt   # ближе к EU-пользователям
+    plan: free          # starter для прода
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: cd backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: ML_MODE
+        value: replicate
+      - key: UPLOADS_DIR
+        value: /tmp/uploads
+      - key: OUTPUT_DIR
+        value: /tmp/output
+      - key: CORS_ORIGINS
+        value: "*"
+      - key: SUPABASE_URL
+        sync: false      # ввести через Dashboard
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: REPLICATE_API_TOKEN
+        sync: false
+      - key: WEBHOOK_BASE_URL
+        sync: false      # https://roomvai-backend.onrender.com
+      - key: POSTHOG_KEY
+        sync: false
+    autoDeploy: true
