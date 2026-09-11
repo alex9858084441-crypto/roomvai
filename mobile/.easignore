@@ -1,0 +1,41 @@
+# EAS Build ignore — исключает файлы из сборки
+
+# Зависимости
+node_modules/
+
+# Metro / Expo кэш
+.expo/
+dist/
+web-build/
+
+# Тесты и скрипты
+**/__tests__/
+**/*.test.*
+**/*.spec.*
+
+# Окружение (секреты не попадают в сборку)
+.env
+.env.local
+.env.*.local
+
+# IDE и системные файлы
+.vscode/
+.idea/
+.DS_Store
+*.log
+metro.log
+
+# Документация
+docs/
+README.md
+AGENTS.md
+
+# Git
+.git/
+.gitignore
+
+# Store metadata (загружается отдельно)
+store/
+
+# Временные файлы
+*.tmp

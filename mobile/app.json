@@ -5,12 +5,16 @@
     "version": "0.2.0",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
+    "icon": "./assets/images/icon.png",
     "splash": {
-      "backgroundColor": "#0f1115",
-      "resizeMode": "contain"
+      "image": "./assets/images/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0f1115"
     },
     "ios": {
       "supportsTablet": true,
+      "bundleIdentifier": "com.roomvai.app",
+      "buildNumber": "1",
       "infoPlist": {
         "NSCameraUsageDescription": "RoomVAI использует камеру для съёмки помещения.",
         "NSPhotoLibraryUsageDescription": "RoomVAI загружает фото помещения из галереи.",
@@ -19,12 +23,15 @@
       }
     },
     "android": {
+      "package": "com.roomvai.app",
+      "versionCode": 1,
       "permissions": [
         "CAMERA",
         "READ_EXTERNAL_STORAGE",
         "WRITE_EXTERNAL_STORAGE"
       ],
       "adaptiveIcon": {
+        "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#0f1115"
       }
     },
@@ -33,6 +40,13 @@
       "expo-image-picker",
       "expo-secure-store",
       "expo-localization",
+      [
+        "expo-apple-authentication",
+        {
+          "appleButtonStyle": "black",
+          "buttonType": "continue"
+        }
+      ],
       [
         "expo-build-properties",
         {

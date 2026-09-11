@@ -268,20 +268,63 @@ npm start
 
 ## 9. Сборка для сторов (post-MVP)
 
-Expo Go не поддерживает часть нативных модулей (RevenueCat, камера с
-некоторыми настройками). Для релизной сборки:
+Expo Go не поддерживает нативные модули (RevenueCat, NetInfo, Apple Sign-In).
+Для релизной сборки требуется EAS Build с нативным кодом.
+
+### 9.1. Подготовка
 
 ```bash
-# Установка EAS CLI
 npm install -g eas-cli
 eas login
+eas init --id com.roomvai.app
+```
 
-# Сборка dev-клиента (для теста на реальном устройстве с нативными модулями)
+### 9.2. Иконки и splash
+
+Поместите файлы в `mobile/assets/images/`:
+
+| Файл | Размер | Назначение |
+| ---- | ------ | ---------- |
+| `icon.png` | 1024×1024 | Иконка (iOS + Android) |
+| `adaptive-icon.png` | 1024×1024 | Адаптивная иконка Android |
+| `splash.png` | 1242×2436 | Экран загрузки |
+
+### 9.3. Сборка
+
+```bash
+# Dev-клиент (симулятор, нативные модули)
 eas build --profile development --platform ios
 eas build --profile development --platform android
 
-# Production-сборка для подачи в сторы
+# Preview (APK для Android)
+eas build --profile preview --platform android
+
+# Production для сторов
 eas build --profile production --platform all
 ```
+
+### 9.4. Отправка в сторы
+
+```bash
+eas submit --platform ios --profile production
+eas submit --platform android --profile production
+```
+
+Метаданные — в `mobile/store/appstore-metadata.txt` и `googleplay-metadata.txt`.
+
+### 9.5. Apple Sign-In
+
+Подключён через `expo-apple-authentication`. Обязателен при наличии Google
+(требование App Store). Включите Sign in with Apple в Apple Developer Portal.
+
+### 9.6. Чеклист публикации
+
+- [ ] Иконки в `assets/images/`
+- [ ] Реальные ключи в `.env` (backend + mobile)
+- [ ] `WEBHOOK_BASE_URL` — публичный домен
+- [ ] Бэкенд задеплоен
+- [ ] Продукты подписки в RevenueCat + App Store Connect
+- [ ] Политики конфиденциальности
+- [ ] Скриншоты для сторов (мин. 3)
 
 Полный чеклист публикации — в `docs/ROADMAP.md` (раздел «Дальнейшие шаги»).

@@ -57,15 +57,16 @@
 ## Дальнейшие шаги (post-MVP)
 
 ### Запуск в продакшн
-- [ ] Подключить нативные SDK: RevenueCat (`purchases-react-native`),
-      PostHog (`posthog-react-native`), NetInfo — через expo prebuild
+- [x] Подключить нативные SDK: RevenueCat (`react-native-purchases`),
+      NetInfo (`@react-native-community/netinfo`), `expo-build-properties`
 - [ ] Указать реальные ключи в `.env` (backend + mobile)
 - [ ] Настроить публичный `WEBHOOK_BASE_URL` для callback'ов Replicate
-- [ ] Выбрать и протестировать конкретную модель ControlNet на Replicate
+- [x] Выбрать модель ControlNet на Replicate (`lllyasviel/sd-controlnet-depth`)
 
 ### Публикация
-- [ ] EAS Build для iOS / Android, иконки, splash, метадатa сторов
-- [ ] Apple Sign-In обязателен при наличии Google (требование App Store)
+- [x] EAS Build: профили сборки (`eas.json`), `bundleIdentifier`, `package`,
+      метаданные сторов (`store/`), `.easignore` — иконки/splash от пользователя
+- [x] Apple Sign-In подключён (`expo-apple-authentication`)
 - [ ] Политики конфиденциальности и пользовательское соглашение
 
 ### Рост
