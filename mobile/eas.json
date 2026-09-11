@@ -11,7 +11,7 @@
         "simulator": true
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "http://192.168.0.185:8000"
+        "EXPO_PUBLIC_API_URL": "https://roomvai.onrender.com"
       }
     },
     "preview": {
