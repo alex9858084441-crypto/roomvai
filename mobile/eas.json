@@ -31,9 +31,6 @@
       "android": {
         "buildType": "app-bundle"
       },
-      "ios": {
-        "imageOptimization": true
-      },
       "env": {
         "EXPO_PUBLIC_API_URL": "https://roomvai.onrender.com"
       }
