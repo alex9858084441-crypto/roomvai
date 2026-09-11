@@ -65,6 +65,7 @@
 - [x] Настроить публичный `WEBHOOK_BASE_URL` для callback'ов Replicate
 - [x] Деплой бэкенда на Render (https://roomvai.onrender.com)
 - [x] `REPLICATE_API_TOKEN` установлен, `ML_MODE=replicate`
+- [x] UptimeRobot/cron-job.org пингер — сервис не засыпает
 - [x] Выбрать модель ControlNet на Replicate (`lllyasviel/sd-controlnet-depth`)
 
 ### Публикация
