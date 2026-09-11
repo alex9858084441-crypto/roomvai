@@ -24,6 +24,16 @@
     "freeHint": "Free: {{remaining}} generation(s) left",
     "history": "History"
   },
+  "camera": {
+    "title": "Room Photos",
+    "hint": "Take 2–4 photos from different angles",
+    "emptyHint": "Photograph your room — at least 2 angles",
+    "snap": "Camera",
+    "gallery": "From gallery",
+    "proceed": "Next",
+    "needMore": "At least {{min}} photos needed",
+    "minPhotos": "{{remaining}} more photo(s) minimum"
+  },
   "style": {
     "scandinavian": "Scandinavian",
     "loft": "Loft",

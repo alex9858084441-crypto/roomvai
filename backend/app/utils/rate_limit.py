@@ -10,7 +10,6 @@ serverless/FastAPI. Для multi-instance нужен Redis-backed limiter.
 from __future__ import annotations
 
 import time
-from collections import defaultdict
 from dataclasses import dataclass, field
 
 
@@ -27,17 +26,20 @@ class RateLimiter:
 
     Параметры:
         max_tokens: максимальное число «жетонов» в бакете.
-        refill_rate: жетонов в секунду (пополнение).
-        window_seconds: окно для подсчёта (для max_tokens за период).
+        refill_seconds: за сколько секунд бакет наполняется до max_tokens.
     """
 
     def __init__(self, max_tokens: int = 3, refill_seconds: float = 30.0) -> None:
         self._max = max_tokens
         self._refill_per_sec = max_tokens / refill_seconds
-        self._buckets: dict[str, _Bucket] = defaultdict(_Bucket)
+        self._buckets: dict[str, _Bucket] = {}
 
     def check(self, key: str) -> bool:
         """Возвращает True, если запрос разрешён (есть жетон)."""
+        # Новый бакет стартует полным (max_tokens).
+        if key not in self._buckets:
+            self._buckets[key] = _Bucket(tokens=float(self._max))
+
         bucket = self._buckets[key]
         now = time.monotonic()
 
@@ -50,6 +52,10 @@ class RateLimiter:
             bucket.tokens -= 1.0
             return True
         return False
+
+    def reset(self) -> None:
+        """Сброс всех бакетов (для тестов)."""
+        self._buckets.clear()
 
 
 # Глобальный лимитер: 3 генерации на 30 секунд на пользователя.

@@ -31,10 +31,10 @@ export function StyleSelectScreen({
   route,
 }: {
   navigation: Nav;
-  route: { params: { imageUri: string } };
+  route: { params: { imageUris: string[] } };
 }) {
   const { t } = useTranslation();
-  const { imageUri } = route.params;
+  const { imageUris } = route.params;
   const [selected, setSelected] = useState<Set<StyleId>>(new Set());
 
   // TODO этап 7: проверка подписки → maxStyles = MAX_STYLES_PRO
@@ -52,7 +52,7 @@ export function StyleSelectScreen({
   const handleGenerate = () => {
     if (selected.size === 0) return;
     navigation.navigate("Generating", {
-      imageUri,
+      imageUris,
       styles: [...selected],
     });
   };

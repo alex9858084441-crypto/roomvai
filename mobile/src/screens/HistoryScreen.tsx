@@ -56,10 +56,10 @@ export function HistoryScreen({ navigation }: { navigation: Nav }) {
     <Pressable
       style={styles.card}
       onPress={() =>
-        navigation.navigate("Result", {
-          generationId: item.id,
-          originalImageUri: item.source_image_url ?? "",
-        })
+      navigation.navigate("Result", {
+        generationId: item.id,
+        originalImageUris: item.source_image_url ? [item.source_image_url] : [],
+      })
       }
     >
       {item.source_image_url ? (

@@ -9,6 +9,8 @@ Pillow>=10.0,<12.0
 # --- Supabase (server-side: service_role операции) ---
 supabase>=2.5.0
 
+python-dotenv>=1.0
+
 # --- Replicate API ---
 replicate>=0.30.0
 

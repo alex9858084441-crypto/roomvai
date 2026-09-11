@@ -28,17 +28,19 @@ export async function fetchStyles(): Promise<import("../../types").StyleInfo[]> 
 }
 
 /**
- * Запуск генерации. Фото уже загружено в Supabase Storage на этапе 3 —
- * сюда передаём URL/путь. Backend запускает Replicate prediction с webhook.
+ * Запуск генерации. Фото уже загружены в Supabase Storage на этапе 3 —
+ * сюда передаём URL/пути. Backend запускает Replicate prediction с webhook.
+ *
+ * Принимает 2–4 фотографии комнаты с разных углов.
  */
 export async function startGeneration(
-  imageUrl: string,
+  imageUrls: string[],
   styles: StyleId[],
   roomType: RoomType,
   userId?: string | null,
 ): Promise<{ generationId: string; status: string }> {
   const params = new URLSearchParams({
-    image_url: imageUrl,
+    image_urls: imageUrls.join(","),
     styles: styles.join(","),
     room_type: roomType,
   });

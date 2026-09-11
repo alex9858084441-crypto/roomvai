@@ -46,6 +46,7 @@ async def root() -> dict:
         "version": "0.9.0",
         "replicate_configured": bool(settings.replicate_api_token),
         "supabase_configured": bool(settings.supabase_url),
+        "ml_mode": settings.ml_mode,
         "status": "ok",
     }
 

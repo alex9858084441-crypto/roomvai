@@ -34,10 +34,10 @@ export function GeneratingScreen({
   route,
 }: {
   navigation: Nav;
-  route: { params: { imageUri: string; styles: StyleId[] } };
+  route: { params: { imageUris: string[]; styles: StyleId[] } };
 }) {
   const { t } = useTranslation();
-  const { imageUri, styles } = route.params;
+  const { imageUris, styles } = route.params;
   const [factIndex, setFactIndex] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const attemptRef = useRef(0);
@@ -55,7 +55,7 @@ export function GeneratingScreen({
     const run = async () => {
       try {
         const { generationId } = await startGeneration(
-          imageUri,
+          imageUris,
           styles,
           "living_room",
         );
@@ -70,7 +70,7 @@ export function GeneratingScreen({
               track("generation_completed");
               navigation.replace("Result", {
                 generationId,
-                originalImageUri: imageUri,
+                originalImageUris: imageUris,
               });
             } else {
               setError(t("errors.generationFailed"));

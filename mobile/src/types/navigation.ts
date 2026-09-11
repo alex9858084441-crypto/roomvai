@@ -9,15 +9,15 @@ export type RootStackParamList = {
   // Основной флоу
   Home: undefined;
   Camera: undefined;
-  StyleSelect: { imageUri: string };
+  StyleSelect: { imageUris: string[] };
   Generating: {
-    imageUri: string;
+    imageUris: string[];
     styles: StyleId[];
     generationId?: string;
   };
   Result: {
     generationId: string;
-    originalImageUri: string;
+    originalImageUris: string[];
   };
   // Монетизация и аккаунт
   Paywall: { showAfterFree?: boolean } | undefined;
