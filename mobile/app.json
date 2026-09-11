@@ -32,7 +32,14 @@
       "expo-camera",
       "expo-image-picker",
       "expo-secure-store",
-      "expo-localization"
+      "expo-localization",
+      [
+        "expo-build-properties",
+        {
+          "ios": { "useFrameworks": "static" },
+          "android": {}
+        }
+      ]
     ],
     "extra": {
       "eas": {

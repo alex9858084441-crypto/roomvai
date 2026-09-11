@@ -41,6 +41,13 @@ export function PaywallScreen({ navigation }: { navigation: Nav }) {
       } else {
         Alert.alert(t("common.error"), t("errors.generationFailed"));
       }
+    } catch (e) {
+      // Пользователь отменил покупку — не показываем ошибку.
+      const isCancelled =
+        e instanceof Error && /cancel/i.test(e.message);
+      if (!isCancelled) {
+        Alert.alert(t("common.error"), t("errors.generationFailed"));
+      }
     } finally {
       setLoading(false);
     }

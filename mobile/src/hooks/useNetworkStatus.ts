@@ -1,41 +1,31 @@
 /**
  * Хук проверки сетевого соединения (раздел 7).
+ * Использует @react-native-community/netinfo — нативный SDK,
+ * который корректно отслеживает WiFi/Cellular/None без polling.
  */
 
 import { useEffect, useState } from "react";
-import { AppState, AppStateStatus } from "react-native";
+import NetInfo from "@react-native-community/netinfo";
 
 export function useNetworkStatus() {
   const [isOnline, setIsOnline] = useState(true);
 
   useEffect(() => {
-    // Для продакшена рекомендуется @react-native-community/netinfo.
-    // Здесь — упрощённая проверка через fetch к health-эндпоинту.
-    let mounted = true;
+    const unsubscribe = NetInfo.addEventListener((state) => {
+      setIsOnline(
+        Boolean(state.isConnected) && Boolean(state.isInternetReachable),
+      );
+    });
 
-    const check = async () => {
-      try {
-        const url =
-          (process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8000") +
-          "/health";
-        const res = await fetch(url, { method: "GET" });
-        if (mounted) setIsOnline(res.ok);
-      } catch {
-        if (mounted) setIsOnline(false);
-      }
-    };
-
-    check();
-    const interval = setInterval(check, 15000);
-    const subscription = AppState.addEventListener(
-      "change",
-      (_state: AppStateStatus) => check(),
-    );
+    // Первичная проверка при монтировании.
+    NetInfo.fetch().then((state) => {
+      setIsOnline(
+        Boolean(state.isConnected) && Boolean(state.isInternetReachable),
+      );
+    });
 
     return () => {
-      mounted = false;
-      clearInterval(interval);
-      subscription.remove();
+      unsubscribe();
     };
   }, []);
 

@@ -8,6 +8,7 @@ import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 
 import { initAnalytics } from "./src/services/api/analytics";
+import { initRevenueCat } from "./src/services/revenuecat/client";
 import { loadSavedLanguage } from "./src/locales";
 import { OnboardingScreen } from "./src/screens/OnboardingScreen";
 import { ConsentScreen } from "./src/screens/ConsentScreen";
@@ -29,6 +30,8 @@ export default function App() {
   useEffect(() => {
     // Этап 9: инициализация аналитики (PostHog) при старте приложения.
     void initAnalytics();
+    // Этап 7: инициализация RevenueCat для нативных покупок.
+    void initRevenueCat();
     // Этап 10: применение сохранённого выбора языка.
     void loadSavedLanguage();
   }, []);
