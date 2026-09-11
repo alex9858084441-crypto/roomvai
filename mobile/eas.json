@@ -21,6 +21,9 @@
       },
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://roomvai.onrender.com"
       }
     },
     "production": {
@@ -30,6 +33,9 @@
       },
       "ios": {
         "imageOptimization": true
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://roomvai.onrender.com"
       }
     }
   },
