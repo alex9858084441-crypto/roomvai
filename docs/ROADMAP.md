@@ -67,6 +67,8 @@
 - [x] `REPLICATE_API_TOKEN` установлен, `ML_MODE=replicate`
 - [x] UptimeRobot/cron-job.org пингер — сервис не засыпает
 - [x] `POSTHOG_KEY` установлен (backend + mobile)
+- [x] `REVENUECAT_API_KEY` установлен (mobile, Google Play)
+- [ ] Apple Developer аккаунт ($99/год) — для App Store и `appl_` ключа
 - [x] Выбрать модель ControlNet на Replicate (`lllyasviel/sd-controlnet-depth`)
 
 ### Публикация
