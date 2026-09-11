@@ -66,6 +66,7 @@
 - [x] Деплой бэкенда на Render (https://roomvai.onrender.com)
 - [x] `REPLICATE_API_TOKEN` установлен, `ML_MODE=replicate`
 - [x] UptimeRobot/cron-job.org пингер — сервис не засыпает
+- [x] `POSTHOG_KEY` установлен (backend + mobile)
 - [x] Выбрать модель ControlNet на Replicate (`lllyasviel/sd-controlnet-depth`)
 
 ### Публикация
