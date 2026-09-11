@@ -33,7 +33,8 @@ class Settings:
     # --- Replicate API (ключ — ТОЛЬКО на бэкенде, раздел 10) ---
     replicate_api_token: str = ""
     # Модель ControlNet + Stable Diffusion для интерьеров.
-    replicate_model: str = "jagilley/controlnet-hough"
+    # depth — лучше всего сохраняет геометрию помещения.
+    replicate_model: str = "lllyasviel/sd-controlnet-depth"
     replicate_model_version: str = ""
 
     # --- Хранилище ---
@@ -88,7 +89,7 @@ def _get_settings() -> Settings:
         supabase_url=os.getenv("SUPABASE_URL", ""),
         supabase_service_role_key=os.getenv("SUPABASE_SERVICE_ROLE_KEY", ""),
         replicate_api_token=os.getenv("REPLICATE_API_TOKEN", ""),
-        replicate_model=os.getenv("REPLICATE_MODEL", "jagilley/controlnet-hough"),
+        replicate_model=os.getenv("REPLICATE_MODEL", "lllyasviel/sd-controlnet-depth"),
         replicate_model_version=os.getenv("REPLICATE_MODEL_VERSION", ""),
         source_images_bucket=os.getenv("SOURCE_IMAGES_BUCKET", "source-images"),
         result_images_bucket=os.getenv("RESULT_IMAGES_BUCKET", "result-images"),

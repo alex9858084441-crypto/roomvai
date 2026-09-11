@@ -41,10 +41,12 @@
    (оплата за фактические генерации, ~$0.002/сек).
 2. Создайте API-токен: **Account → API tokens** → `r8_...`.
 3. По умолчанию в конфиге используется модель `jagilley/controlnet-hough`.
-   Можно подобрать другую ControlNet-модель для интерьеров —
-   поищите на replicate.com/explore по запросу `controlnet interior`.
+  Можно подобрать другую ControlNet-модель для интерьеров —
+  поищите на replicate.com/explore по запросу `controlnet interior`.
+  Текущая модель по умолчанию: `lllyasviel/sd-controlnet-depth`
+  (depth map лучше сохраняет геометрию помещения).
 4. Для работы webhooks бэкенд должен быть доступен из интернета по
-   публичному URL (см. шаг 4 про ngrok).
+  публичному URL (см. шаг 4 про ngrok).
 
 
 ## 3. Бэкенд (FastAPI)
@@ -75,7 +77,7 @@ SUPABASE_SERVICE_ROLE_KEY=eyJ...service_role...
 
 # Replicate (из шага 2)
 REPLICATE_API_TOKEN=r8_ВАШ_ТОКЕН
-REPLICATE_MODEL=jagilley/controlnet-hough
+REPLICATE_MODEL=lllyasviel/sd-controlnet-depth
 
 # Публичный URL бэкенда для callback'ов Replicate (из шага 4)
 WEBHOOK_BASE_URL=https://xxxx.ngrok.io
@@ -212,7 +214,8 @@ npm start
 | GET | `/health` | Простой healthcheck |
 | GET | `/docs` | Swagger-документация |
 | GET | `/styles` | Список из 8 стилей с описаниями |
-| POST | `/generate?image_url=...&styles=loft,minimalism&room_type=living_room` | Запуск генерации (rate-limited: 3 запроса / 30 сек) |
+| POST | `/generate?image_urls=p1.jpg,p2.jpg&styles=loft,minimalism&room_type=living_room` | Запуск генерации: 2–4 фото с разных углов |
+| | (rate-limited: 3 запроса / 30 сек) |
 | GET | `/generations/{id}` | Статус генерации + результаты с подписанными URL |
 | GET | `/subscription?user_id=...` | Серверная валидация статуса подписки |
 | POST | `/webhooks/replicate` | Callback от Replicate (вызывается самим Replicate) |
@@ -257,6 +260,8 @@ npm start
 
 **Подписки не работают**
 - RevenueCat требует нативного SDK и `expo prebuild` (dev-клиент вместо Expo Go).
+- После `npm install` выполните `npx expo prebuild --clean` для генерации
+  нативных проектов iOS/Android.
 - Без ключа `EXPO_PUBLIC_REVENUECAT_API_KEY` paywall работает в demo-режиме
   (покупка не завершится). Это нормально для теста UI.
 
