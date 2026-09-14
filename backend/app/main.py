@@ -18,7 +18,7 @@ app = FastAPI(
     title=settings.app_name,
     description=(
         "API мобильного приложения RoomVAI: рестайлинг помещений "
-        "в разные дизайнерские стили с помощью генеративной нейросети (fal.ai + Flux)."
+        "в разные дизайнерские стили с помощью генеративной нейросети (Together AI + SDXL)."
     ),
     version="0.9.0",
 )
@@ -44,7 +44,7 @@ async def root() -> dict:
     return {
         "name": settings.app_name,
         "version": "0.9.0",
-        "fal_configured": bool(settings.fal_api_key),
+        "together_configured": bool(settings.together_api_key),
         "supabase_configured": bool(settings.supabase_url),
         "ml_mode": settings.ml_mode,
         "status": "ok",
@@ -54,12 +54,3 @@ async def root() -> dict:
 @app.get("/health", tags=["health"])
 async def health() -> dict:
     return {"status": "ok"}
-@app.get("/debug/env", tags=["debug"])
-async def debug_env() -> dict:
-    import os
-    return {
-        "FAL_API_KEY_set": "FAL_API_KEY" in os.environ,
-        "FAL_API_KEY_len": len(os.environ.get("FAL_API_KEY", "")),
-        "FAL_API_KEY_prefix": os.environ.get("FAL_API_KEY", "")[:10],
-        "ML_MODE": os.environ.get("ML_MODE", ""),
-    }

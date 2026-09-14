@@ -23,7 +23,7 @@ from pydantic import BaseModel
 
 from app.config import settings
 from app.schemas import RoomType, StyleId
-from app.services import fal as fal_client
+from app.services import together as together_client
 from app.services import supabase_admin
 from app.services.jobs import job_store
 from app.services.mock_image import generate_placeholder
@@ -101,11 +101,12 @@ async def generate(
 
     # ─────────────────────────────────────────────────────────────────────
     # PROD-режим: Supabase DB + fal.ai.
+    # PROD-режим: Supabase DB + Together AI.
     # ─────────────────────────────────────────────────────────────────────
-    if not settings.fal_api_key:
+    if not settings.together_api_key:
         raise HTTPException(
             status_code=503,
-            detail="FAL_API_KEY не настроен на бэкенде",
+            detail="TOGETHER_API_KEY не настроен на бэкенде",
         )
 
     # TODO этап 7: проверка квоты/подписки через supabase_admin.check_quota()
@@ -230,9 +231,9 @@ async def _run_single_prediction(
         return
 
     try:
-        data = await fal_client.generate_image(image_urls[0], prompt)
+        data = await together_client.generate_image(image_urls[0], prompt)
     except Exception as exc:
-        logger.exception("Ошибка генерации на fal.ai для стиля %s", style)
+        logger.exception("Ошибка генерации на Together AI для стиля %s", style)
         try:
             await supabase_admin.update_result(
                 result_id, status="failed", error=str(exc)
@@ -242,11 +243,11 @@ async def _run_single_prediction(
         await _maybe_complete_generation(generation_id)
         return
 
-    # Извлекаем URL результата.
-    images = data.get("images", [])
+    # Извлекаем URL результата (формат Together AI: {"data": [{"url": "..."}]}).
+    images = data.get("data", [])
     if not images:
         await supabase_admin.update_result(
-            result_id, status="failed", error="fal.ai вернул пустой результат"
+            result_id, status="failed", error="Together AI вернул пустой результат"
         )
         await _maybe_complete_generation(generation_id)
         return
@@ -254,12 +255,12 @@ async def _run_single_prediction(
     output_url = images[0].get("url", "")
     if not output_url:
         await supabase_admin.update_result(
-            result_id, status="failed", error="fal.ai не вернул URL изображения"
+            result_id, status="failed", error="Together AI не вернул URL изображения"
         )
         await _maybe_complete_generation(generation_id)
         return
 
-    cost = fal_client.estimate_cost(data)
+    cost = together_client.estimate_cost(data)
 
     # Загрузка результата в Supabase Storage.
     async with httpx.AsyncClient(timeout=30) as client:
