@@ -34,7 +34,7 @@ class Settings:
     replicate_api_token: str = ""
     # Модель ControlNet + Stable Diffusion для интерьеров.
     # SDXL img2img — сохраняет структуру фото и применяет стиль.
-    replicate_model: str = "stability-ai/sdxl"
+    replicate_model: str = "black-forest-labs/flux-schnell"
     replicate_model_version: str = ""
 
     # --- Хранилище ---
@@ -43,7 +43,7 @@ class Settings:
 
     # --- ML / генерация (локальный режим sd, для совместимости) ---
     ml_mode: str = "mock"
-    ml_model_id: str = "stability-ai/sdxl"
+    ml_model_id: str = "black-forest-labs/flux-schnell"
     ml_device: str = "cpu"
     ml_num_inference_steps: int = 30
     ml_strength: float = 0.75
@@ -90,11 +90,12 @@ def _get_settings() -> Settings:
         supabase_service_role_key=os.getenv("SUPABASE_SERVICE_ROLE_KEY", ""),
         replicate_api_token=os.getenv("REPLICATE_API_TOKEN", ""),
         replicate_model=os.getenv("REPLICATE_MODEL", "stability-ai/sdxl"),
+        replicate_model=os.getenv("REPLICATE_MODEL", "black-forest-labs/flux-schnell"),
         replicate_model_version=os.getenv("REPLICATE_MODEL_VERSION", ""),
         source_images_bucket=os.getenv("SOURCE_IMAGES_BUCKET", "source-images"),
         result_images_bucket=os.getenv("RESULT_IMAGES_BUCKET", "result-images"),
         ml_mode=os.getenv("ML_MODE", "mock"),
-        ml_model_id=os.getenv("ML_MODEL_ID", "stability-ai/sdxl"),
+        ml_model_id=os.getenv("ML_MODEL_ID", "black-forest-labs/flux-schnell"),
         ml_device=os.getenv("ML_DEVICE", "cpu"),
         ml_num_inference_steps=int(os.getenv("ML_NUM_INFERENCE_STEPS", "30")),
         ml_strength=float(os.getenv("ML_STRENGTH", "0.75")),

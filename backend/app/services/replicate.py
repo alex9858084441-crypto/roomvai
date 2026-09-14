@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import logging
+import json
 from typing import Any
 
 import httpx
@@ -80,7 +81,17 @@ async def create_prediction(
 
     async with httpx.AsyncClient(timeout=30) as client:
         resp = await client.post(url, json=payload, headers=_headers())
-        resp.raise_for_status()
+        if not resp.is_success:
+            logger.error(
+                "Replicate API error %s: %s\nURL: %s\nPayload: %s",
+                resp.status_code,
+                resp.text[:500],
+                url,
+                json.dumps(payload)[:500],
+            )
+            raise RuntimeError(
+                f"Replicate {resp.status_code}: {resp.text[:300]}"
+            )
         return resp.json()
 
 
