@@ -53,12 +53,13 @@ async def create_prediction(
 
     payload: dict[str, Any] = {
         "input": {
-            "image": image_url,
             "prompt": prompt,
             "negative_prompt": (
                 "low quality, blurry, distorted geometry, deformed walls, "
                 "extra doors, watermark, text"
             ),
+            "image": image_url,
+            "prompt_strength": settings.ml_strength,
             "num_inference_steps": settings.ml_num_inference_steps,
             "guidance_scale": 7.5,
         },
