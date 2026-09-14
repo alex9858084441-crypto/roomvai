@@ -18,7 +18,7 @@ app = FastAPI(
     title=settings.app_name,
     description=(
         "API мобильного приложения RoomVAI: рестайлинг помещений "
-        "в разные дизайнерские стили с помощью генеративной нейросети (Replicate + ControlNet)."
+        "в разные дизайнерские стили с помощью генеративной нейросети (fal.ai + Flux)."
     ),
     version="0.9.0",
 )
@@ -44,7 +44,7 @@ async def root() -> dict:
     return {
         "name": settings.app_name,
         "version": "0.9.0",
-        "replicate_configured": bool(settings.replicate_api_token),
+        "fal_configured": bool(settings.fal_api_key),
         "supabase_configured": bool(settings.supabase_url),
         "ml_mode": settings.ml_mode,
         "status": "ok",

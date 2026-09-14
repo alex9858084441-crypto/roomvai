@@ -31,11 +31,10 @@ class Settings:
     supabase_service_role_key: str = ""
 
     # --- Replicate API (ключ — ТОЛЬКО на бэкенде, раздел 10) ---
-    replicate_api_token: str = ""
-    # Модель ControlNet + Stable Diffusion для интерьеров.
-    # SDXL img2img — сохраняет структуру фото и применяет стиль.
-    replicate_model: str = "black-forest-labs/flux-schnell"
-    replicate_model_version: str = ""
+    # fal.ai: ключ API (только бэкенд, раздел 10).
+    fal_api_key: str = ""
+    # Эндпоинт модели: flux/dev img2img.
+    fal_model_endpoint: str = "fal-ai/flux/dev/image-to-image"
 
     # --- Хранилище ---
     source_images_bucket: str = "source-images"
@@ -43,7 +42,7 @@ class Settings:
 
     # --- ML / генерация (локальный режим sd, для совместимости) ---
     ml_mode: str = "mock"
-    ml_model_id: str = "black-forest-labs/flux-schnell"
+    ml_model_id: str = "fal-ai/flux/dev/image-to-image"
     ml_device: str = "cpu"
     ml_num_inference_steps: int = 30
     ml_strength: float = 0.75
@@ -88,13 +87,12 @@ def _get_settings() -> Settings:
         cors_origins=cors,
         supabase_url=os.getenv("SUPABASE_URL", ""),
         supabase_service_role_key=os.getenv("SUPABASE_SERVICE_ROLE_KEY", ""),
-        replicate_api_token=os.getenv("REPLICATE_API_TOKEN", ""),
-       replicate_model=os.getenv("REPLICATE_MODEL", "black-forest-labs/flux-schnell"),
-       replicate_model_version=os.getenv("REPLICATE_MODEL_VERSION", ""),
+        fal_api_key=os.getenv("FAL_API_KEY", ""),
+        fal_model_endpoint=os.getenv("FAL_MODEL_ENDPOINT", "fal-ai/flux/dev/image-to-image"),
         source_images_bucket=os.getenv("SOURCE_IMAGES_BUCKET", "source-images"),
         result_images_bucket=os.getenv("RESULT_IMAGES_BUCKET", "result-images"),
         ml_mode=os.getenv("ML_MODE", "mock"),
-        ml_model_id=os.getenv("ML_MODEL_ID", "black-forest-labs/flux-schnell"),
+        ml_model_id=os.getenv("ML_MODEL_ID", "fal-ai/flux/dev/image-to-image"),
         ml_device=os.getenv("ML_DEVICE", "cpu"),
         ml_num_inference_steps=int(os.getenv("ML_NUM_INFERENCE_STEPS", "30")),
         ml_strength=float(os.getenv("ML_STRENGTH", "0.75")),

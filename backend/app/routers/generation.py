@@ -1,12 +1,13 @@
-"""Эндпоинты генерации: приём фото, запуск Replicate, опрос статуса.
+"""Эндпоинты генерации: приём фото, запуск fal.ai, опрос статуса.
 
 Поток (раздел 4):
 - POST /generate: квота → создание generation в БД → параллельный запуск
-  prediction(s) на Replicate (asyncio.gather) с webhook → возврат generation_id
+  генераций на fal.ai (asyncio.gather) → возврат generation_id
 - GET /generations/{id}: статус + результаты
-- POST /webhooks/replicate: callback от Replicate → загрузка результата → запись cost_usd
 
-Mock-режим (ML_MODE=mock): генерация без Supabase и Replicate,
+fal.ai возвращает результат синхронно — webhook не нужен.
+
+Mock-режим (ML_MODE=mock): генерация без Supabase и fal.ai,
 результаты хранятся in-memory, изображения генерируются через Pillow.
 """
 
@@ -15,13 +16,14 @@ from __future__ import annotations
 import asyncio
 import logging
 
+import httpx
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel
 
 from app.config import settings
 from app.schemas import RoomType, StyleId
-from app.services import replicate as replicate_client
+from app.services import fal as fal_client
 from app.services import supabase_admin
 from app.services.jobs import job_store
 from app.services.mock_image import generate_placeholder
@@ -72,7 +74,7 @@ async def generate(
     if len(url_list) > 4:
         raise HTTPException(status_code=422, detail="Максимум 4 фотографии комнаты")
 
-    # Rate-limiting (раздел 10): защита бюджета Replicate от злоупотреблений.
+    # Rate-limiting (раздел 10): защита бюджета от злоупотреблений.
     client_ip = request.client.host if request.client else "unknown"
     rate_key = user_id or client_ip
     if not generate_limiter.check(rate_key):
@@ -98,12 +100,12 @@ async def generate(
         )
 
     # ─────────────────────────────────────────────────────────────────────
-    # PROD-режим: Supabase DB + Replicate.
+    # PROD-режим: Supabase DB + fal.ai.
     # ─────────────────────────────────────────────────────────────────────
-    if not settings.replicate_api_token:
+    if not settings.fal_api_key:
         raise HTTPException(
             status_code=503,
-            detail="REPLICATE_API_TOKEN не настроен на бэкенде",
+            detail="FAL_API_KEY не настроен на бэкенде",
         )
 
     # TODO этап 7: проверка квоты/подписки через supabase_admin.check_quota()
@@ -184,7 +186,7 @@ async def _run_mock_styles(
 
 
 # ============================================================================
-# PROD: параллельный запуск prediction на Replicate.
+# PROD: параллельный запуск генерации на fal.ai (синхронный, без webhook).
 # ============================================================================
 
 async def _run_all_styles(
@@ -193,9 +195,9 @@ async def _run_all_styles(
     image_urls: list[str],
     styles: list[StyleId],
 ) -> None:
-    """Параллельный запуск prediction для всех стилей (раздел 4: Promise.all).
+    """Параллельный запуск генераций для всех стилей (раздел 4: Promise.all).
 
-    Каждый стиль — отдельный prediction на Replicate со своим webhook.
+    Каждый стиль — отдельный вызов fal.ai (синхронный, без webhook).
     return_exceptions=True: падение одного стиля не роняет остальные.
     """
     tasks = [
@@ -211,103 +213,71 @@ async def _run_single_prediction(
     image_urls: list[str],
     style: StyleId,
 ) -> None:
-    """Запуск одного prediction и создание записи результата."""
-    prompt = get_style_prompt(style)
-    try:
-        prediction = await replicate_client.create_prediction(image_urls[0], prompt)
-    except Exception as exc:
-        logger.exception("Ошибка запуска prediction для стиля %s", style)
-        # Отдельный стиль упал — генерация продолжается, другие стили живы.
-        try:
-            await supabase_admin.create_result_failed(
-                generation_id, style.value, str(exc)
-            )
-        except Exception:
-            logger.exception("Не удалось записать failed-результат для %s", style)
-        return
+    """Запуск одной генерации на fal.ai: вызов → загрузка → запись в БД.
 
-    prediction_id = prediction.get("id", "")
+    fal.ai возвращает результат синхронно — webhook не нужен.
+    """
+    prompt = get_style_prompt(style)
+
+    # Создаём запись результата со статусом processing.
     try:
-        await supabase_admin.create_result(generation_id, style.value, prediction_id)
+        result = await supabase_admin.create_result(
+            generation_id, style.value, ""
+        )
+        result_id = result["id"]
     except Exception:
         logger.exception("Не удалось создать result в БД для стиля %s", style)
+        return
 
+    try:
+        data = await fal_client.generate_image(image_urls[0], prompt)
+    except Exception as exc:
+        logger.exception("Ошибка генерации на fal.ai для стиля %s", style)
+        try:
+            await supabase_admin.update_result(
+                result_id, status="failed", error=str(exc)
+            )
+        except Exception:
+            logger.exception("Не удалось обновить failed-результат для %s", style)
+        await _maybe_complete_generation(generation_id)
+        return
 
-# ============================================================================
-# WEBHOOK от Replicate (раздел 4: вместо polling)
-# ============================================================================
+    # Извлекаем URL результата.
+    images = data.get("images", [])
+    if not images:
+        await supabase_admin.update_result(
+            result_id, status="failed", error="fal.ai вернул пустой результат"
+        )
+        await _maybe_complete_generation(generation_id)
+        return
 
-class ReplicateWebhookPayload(BaseModel):
-    id: str  # prediction_id
-    status: str
-    output: list[str] | str | None = None
-    error: str | None = None
-    metrics: dict | None = None
+    output_url = images[0].get("url", "")
+    if not output_url:
+        await supabase_admin.update_result(
+            result_id, status="failed", error="fal.ai не вернул URL изображения"
+        )
+        await _maybe_complete_generation(generation_id)
+        return
 
+    cost = fal_client.estimate_cost(data)
 
-@router.post("/webhooks/replicate")
-async def replicate_webhook(payload: ReplicateWebhookPayload) -> dict:
-    """Callback от Replicate: матчинг по prediction_id → загрузка результата.
+    # Загрузка результата в Supabase Storage.
+    async with httpx.AsyncClient(timeout=30) as client:
+        img_resp = await client.get(output_url)
+        img_resp.raise_for_status()
+        image_bytes = img_resp.content
 
-    Раздел 4: не списывать генерацию при ошибке API.
-    """
-    prediction_id = payload.id
-
-    # Поиск результата по prediction_id.
-    url = (
-        f"{settings.supabase_url}/rest/v1/generation_results"
-        f"?replicate_prediction_id=eq.{prediction_id}"
+    filename = f"{generation_id}_{style.value}.png"
+    storage_path = await supabase_admin.upload_result_image(
+        image_bytes, user_id, filename
     )
-    import httpx
-    headers = {
-        "apikey": settings.supabase_service_role_key,
-        "Authorization": f"Bearer {settings.supabase_service_role_key}",
-    }
-    async with httpx.AsyncClient(timeout=15) as client:
-        resp = await client.get(url, headers=headers)
-        resp.raise_for_status()
-        results = resp.json()
-
-    if not results:
-        logger.warning("Webhook: результат для prediction %s не найден", prediction_id)
-        return {"status": "ignored"}
-
-    result = results[0]
-    result_id = result["id"]
-    generation_id = result["generation_id"]
-    user_id = result.get("user_id")
-
-    if payload.status == "succeeded" and payload.output:
-        output_url = (
-            payload.output[0] if isinstance(payload.output, list) else payload.output
-        )
-        cost = replicate_client.estimate_cost({"metrics": payload.metrics or {}})
-
-        # Загрузка результата в Supabase Storage.
-        async with httpx.AsyncClient(timeout=30) as client:
-            img_resp = await client.get(output_url)
-            img_resp.raise_for_status()
-            image_bytes = img_resp.content
-
-        filename = f"{generation_id}_{result['style']}.png"
-        storage_path = await supabase_admin.upload_result_image(
-            image_bytes, user_id, filename
-        )
-        await supabase_admin.update_result(
-            result_id,
-            status="completed",
-            result_image_path=storage_path,
-            cost_usd=cost,
-        )
-        await _maybe_complete_generation(generation_id)
-    else:
-        # Ошибка — НЕ списываем генерацию (раздел 4).
-        await supabase_admin.update_result(
-            result_id, status="failed", error=payload.error or "unknown"
-        )
-        await _maybe_complete_generation(generation_id)
-
-    return {"status": "ok"}
+    await supabase_admin.update_result(
+        result_id,
+        status="completed",
+        result_image_path=storage_path,
+        cost_usd=cost,
+    )
+    await _maybe_complete_generation(generation_id)
 
 
 async def _maybe_complete_generation(generation_id: str) -> None:
@@ -322,7 +292,7 @@ async def _maybe_complete_generation(generation_id: str) -> None:
 
 
 # ============================================================================
-# Опрос статуса (клиент дёргает после webhook, либо fallback backoff)
+# Опрос статуса (клиент дёргает после генерации)
 # ============================================================================
 
 @router.get("/generations/{generation_id}")
