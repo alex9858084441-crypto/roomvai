@@ -54,3 +54,12 @@ async def root() -> dict:
 @app.get("/health", tags=["health"])
 async def health() -> dict:
     return {"status": "ok"}
+@app.get("/debug/env", tags=["debug"])
+async def debug_env() -> dict:
+    import os
+    return {
+        "FAL_API_KEY_set": "FAL_API_KEY" in os.environ,
+        "FAL_API_KEY_len": len(os.environ.get("FAL_API_KEY", "")),
+        "FAL_API_KEY_prefix": os.environ.get("FAL_API_KEY", "")[:10],
+        "ML_MODE": os.environ.get("ML_MODE", ""),
+    }
