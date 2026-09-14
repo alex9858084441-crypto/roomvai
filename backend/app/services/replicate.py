@@ -72,10 +72,10 @@ async def create_prediction(
     # Если указана конкретная версия модели — используем её, иначе — модель.
     url = f"{REPLICATE_API_BASE}/predictions"
     if settings.replicate_model_version:
-        url = f"{url}/{settings.replicate_model_version}"
-        payload["version"] = settings.replicate_model_version
+       payload["version"] = settings.replicate_model_version
     else:
-        payload["model"] = settings.replicate_model
+        # Model-based вызов: POST /v1/models/{owner}/{model}/predictions
+        url = f"{REPLICATE_API_BASE}/models/{settings.replicate_model}/predictions"
 
     async with httpx.AsyncClient(timeout=30) as client:
         resp = await client.post(url, json=payload, headers=_headers())

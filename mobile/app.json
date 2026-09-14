@@ -19,16 +19,17 @@
         "NSCameraUsageDescription": "RoomVAI использует камеру для съёмки помещения.",
         "NSPhotoLibraryUsageDescription": "RoomVAI загружает фото помещения из галереи.",
         "NSPhotoLibraryAddUsageDescription": "RoomVAI сохраняет сгенерированные изображения в галерею.",
-        "NSUserTrackingUsageDescription": "Используется для аналитики и улучшения приложения."
+        "NSUserTrackingUsageDescription": "Используется для аналитики и улучшения приложения.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
       "package": "com.roomvai.app",
       "versionCode": 1,
       "permissions": [
-        "CAMERA",
-        "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE"
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
       ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
@@ -50,15 +51,18 @@
       [
         "expo-build-properties",
         {
-          "ios": { "useFrameworks": "static" },
+          "ios": {
+            "useFrameworks": "static"
+          },
           "android": {}
         }
       ]
     ],
     "extra": {
       "eas": {
-        "projectId": "roomvai"
+        "projectId": "93f7344b-7304-4259-abb9-340ff20b270e"
       }
-    }
+    },
+    "owner": "alex9858084441"
   }
 }
