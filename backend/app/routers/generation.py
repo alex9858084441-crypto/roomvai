@@ -215,11 +215,13 @@ async def _run_single_prediction(
     prompt = get_style_prompt(style)
     try:
         prediction = await replicate_client.create_prediction(image_urls[0], prompt)
-    except Exception:
+    except Exception as exc:
         logger.exception("Ошибка запуска prediction для стиля %s", style)
         # Отдельный стиль упал — генерация продолжается, другие стили живы.
         try:
-            await supabase_admin.create_result_failed(generation_id, style.value)
+            await supabase_admin.create_result_failed(
+                generation_id, style.value, str(exc)
+            )
         except Exception:
             logger.exception("Не удалось записать failed-результат для %s", style)
         return
