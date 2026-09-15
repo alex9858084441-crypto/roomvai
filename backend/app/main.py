@@ -18,7 +18,7 @@ app = FastAPI(
     title=settings.app_name,
     description=(
         "API мобильного приложения RoomVAI: рестайлинг помещений "
-        "в разные дизайнерские стили с помощью генеративной нейросети (Together AI + SDXL)."
+        "в разные дизайнерские стили с помощью генеративной нейросети (VseGPT.ru + SDXL)."
     ),
     version="0.9.0",
 )
@@ -44,7 +44,7 @@ async def root() -> dict:
     return {
         "name": settings.app_name,
         "version": "0.9.0",
-        "together_configured": bool(settings.together_api_key),
+        "vsegpt_configured": bool(settings.vsegpt_api_key),
         "supabase_configured": bool(settings.supabase_url),
         "ml_mode": settings.ml_mode,
         "status": "ok",

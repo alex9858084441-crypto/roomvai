@@ -1,13 +1,13 @@
-"""Эндпоинты генерации: приём фото, запуск fal.ai, опрос статуса.
+"""Эндпоинты генерации: приём фото, запуск VseGPT.ru, опрос статуса.
 
 Поток (раздел 4):
 - POST /generate: квота → создание generation в БД → параллельный запуск
-  генераций на fal.ai (asyncio.gather) → возврат generation_id
+  генераций на VseGPT.ru (asyncio.gather) → возврат generation_id
 - GET /generations/{id}: статус + результаты
 
-fal.ai возвращает результат синхронно — webhook не нужен.
+VseGPT.ru возвращает результат синхронно — webhook не нужен.
 
-Mock-режим (ML_MODE=mock): генерация без Supabase и fal.ai,
+Mock-режим (ML_MODE=mock): генерация без Supabase и VseGPT.ru,
 результаты хранятся in-memory, изображения генерируются через Pillow.
 """
 
@@ -23,7 +23,7 @@ from pydantic import BaseModel
 
 from app.config import settings
 from app.schemas import RoomType, StyleId
-from app.services import together as together_client
+from app.services import vsegpt as vsegpt_client
 from app.services import supabase_admin
 from app.services.jobs import job_store
 from app.services.mock_image import generate_placeholder
@@ -100,13 +100,12 @@ async def generate(
         )
 
     # ─────────────────────────────────────────────────────────────────────
-    # PROD-режим: Supabase DB + fal.ai.
-    # PROD-режим: Supabase DB + Together AI.
+    # PROD-режим: Supabase DB + VseGPT.ru.
     # ─────────────────────────────────────────────────────────────────────
-    if not settings.together_api_key:
+    if not settings.vsegpt_api_key:
         raise HTTPException(
             status_code=503,
-            detail="TOGETHER_API_KEY не настроен на бэкенде",
+            detail="VSEGPT_API_KEY не настроен на бэкенде",
         )
 
     # TODO этап 7: проверка квоты/подписки через supabase_admin.check_quota()
@@ -187,7 +186,7 @@ async def _run_mock_styles(
 
 
 # ============================================================================
-# PROD: параллельный запуск генерации на fal.ai (синхронный, без webhook).
+# PROD: параллельный запуск генерации на VseGPT.ru (синхронный, без webhook).
 # ============================================================================
 
 async def _run_all_styles(
@@ -198,7 +197,7 @@ async def _run_all_styles(
 ) -> None:
     """Параллельный запуск генераций для всех стилей (раздел 4: Promise.all).
 
-    Каждый стиль — отдельный вызов fal.ai (синхронный, без webhook).
+    Каждый стиль — отдельный вызов VseGPT.ru (синхронный, без webhook).
     return_exceptions=True: падение одного стиля не роняет остальные.
     """
     tasks = [
@@ -214,9 +213,9 @@ async def _run_single_prediction(
     image_urls: list[str],
     style: StyleId,
 ) -> None:
-    """Запуск одной генерации на fal.ai: вызов → загрузка → запись в БД.
+    """Запуск одной генерации на VseGPT.ru: вызов → загрузка → запись в БД.
 
-    fal.ai возвращает результат синхронно — webhook не нужен.
+    VseGPT.ru возвращает результат синхронно — webhook не нужен.
     """
     prompt = get_style_prompt(style)
 
@@ -231,9 +230,9 @@ async def _run_single_prediction(
         return
 
     try:
-        data = await together_client.generate_image(image_urls[0], prompt)
+        data = await vsegpt_client.generate_image(image_urls[0], prompt)
     except Exception as exc:
-        logger.exception("Ошибка генерации на Together AI для стиля %s", style)
+        logger.exception("Ошибка генерации на VseGPT для стиля %s", style)
         try:
             await supabase_admin.update_result(
                 result_id, status="failed", error=str(exc)
@@ -243,11 +242,11 @@ async def _run_single_prediction(
         await _maybe_complete_generation(generation_id)
         return
 
-    # Извлекаем URL результата (формат Together AI: {"data": [{"url": "..."}]}).
+    # Извлекаем результат (формат VseGPT: {"data": [{"url": "..."}]}).
     images = data.get("data", [])
     if not images:
         await supabase_admin.update_result(
-            result_id, status="failed", error="Together AI вернул пустой результат"
+            result_id, status="failed", error="VseGPT вернул пустой результат"
         )
         await _maybe_complete_generation(generation_id)
         return
@@ -255,18 +254,23 @@ async def _run_single_prediction(
     output_url = images[0].get("url", "")
     if not output_url:
         await supabase_admin.update_result(
-            result_id, status="failed", error="Together AI не вернул URL изображения"
+            result_id, status="failed", error="VseGPT не вернул URL изображения"
         )
         await _maybe_complete_generation(generation_id)
         return
 
-    cost = together_client.estimate_cost(data)
+    cost = vsegpt_client.estimate_cost(data)
 
     # Загрузка результата в Supabase Storage.
-    async with httpx.AsyncClient(timeout=30) as client:
-        img_resp = await client.get(output_url)
-        img_resp.raise_for_status()
-        image_bytes = img_resp.content
+    # Если VseGPT вернул base64, берём байты напрямую; иначе скачиваем по URL.
+    b64_bytes = vsegpt_client.get_image_bytes(data)
+    if b64_bytes is not None:
+        image_bytes = b64_bytes
+    else:
+        async with httpx.AsyncClient(timeout=30) as client:
+            img_resp = await client.get(output_url)
+            img_resp.raise_for_status()
+            image_bytes = img_resp.content
 
     filename = f"{generation_id}_{style.value}.png"
     storage_path = await supabase_admin.upload_result_image(

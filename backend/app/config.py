@@ -30,12 +30,11 @@ class Settings:
     supabase_url: str = ""
     supabase_service_role_key: str = ""
 
-    # --- Replicate API (ключ — ТОЛЬКО на бэкенде, раздел 10) ---
-    # fal.ai: ключ API (только бэкенд, раздел 10).
-    # Together AI: ключ API (только бэкенд, раздел 10).
-    together_api_key: str = ""
+    # --- VseGPT.ru API (ключ — ТОЛЬКО на бэкенде) ---
+    # VseGPT.ru: прокси к SDXL и др. моделям. Принимает российские карты/СБП.
+    vsegpt_api_key: str = ""
     # Модель: SDXL img2img.
-    together_model: str = "stabilityai/stable-diffusion-xl-base-1.0"
+    vsegpt_model: str = "stabilityai/stable-diffusion-xl-base-1.0"
 
     # --- Хранилище ---
     source_images_bucket: str = "source-images"
@@ -59,7 +58,7 @@ class Settings:
     max_image_dimension: int = 1536
 
     # --- Webhook ---
-    # URL, на который Replicate вернёт результат (должен быть публично доступен).
+    # URL, на который провайдер вернёт результат (должен быть публично доступен).
     webhook_base_url: str = ""
 
     # --- Аналитика (server-side PostHog для событий из webhook'ов) ---
@@ -88,8 +87,8 @@ def _get_settings() -> Settings:
         cors_origins=cors,
         supabase_url=os.getenv("SUPABASE_URL", ""),
         supabase_service_role_key=os.getenv("SUPABASE_SERVICE_ROLE_KEY", ""),
-        together_api_key=os.getenv("TOGETHER_API_KEY", ""),
-        together_model=os.getenv("TOGETHER_MODEL", "stabilityai/stable-diffusion-xl-base-1.0"),
+        vsegpt_api_key=os.getenv("VSEGPT_API_KEY", ""),
+        vsegpt_model=os.getenv("VSEGPT_MODEL", "stabilityai/stable-diffusion-xl-base-1.0"),
         source_images_bucket=os.getenv("SOURCE_IMAGES_BUCKET", "source-images"),
         result_images_bucket=os.getenv("RESULT_IMAGES_BUCKET", "result-images"),
         ml_mode=os.getenv("ML_MODE", "mock"),
