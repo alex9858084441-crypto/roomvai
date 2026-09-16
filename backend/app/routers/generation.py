@@ -487,6 +487,8 @@ async def debug_vsegpt_test(image_url: str) -> dict:
     results = []
     async with httpx.AsyncClient(timeout=60) as client:
         for i, payload in enumerate(variants):
+            if i > 0:
+                await asyncio.sleep(1.5)
             keys = list(payload.keys())
             try:
                 resp = await client.post(
