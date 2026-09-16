@@ -87,8 +87,6 @@ async def generate_image(
         "model": model,
         "prompt": prompt,
         "image": image_url,
-        "mode": "image-to-image",
-        "n": 1,
         "response_format": "b64_json",
     }
 
