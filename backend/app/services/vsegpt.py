@@ -2,18 +2,13 @@
 
 VseGPT.ru: https://vsegpt.ru
 Прокси к моделям генерации изображений (FLUX, Google, Recraft и др.).
-Принимает российские карты и СБП.
 
-API совместим с OpenAI Images API:
-- POST /v1/images/edit — img2img (редактирование изображения по промпту)
+API (OpenAI-совместимый, но с расширениями для img2img):
+- POST /v1/images/generations — единственный доступный endpoint для картинок
 - Авторизация: Bearer <ключ>
-- multipart/form-data: image (файл), prompt, model, n, response_format
+- JSON body: model, prompt, image (URL), mode, n, response_format
+- img2img модели имеют префикс "img2img-"
 - Возвращает {"data": [{"url": "..."}]} или {"data": [{"b64_json": "..."}]}
-
-Поток:
-1. POST /generate → vsegpt.generate_image() → скачивает исходное фото
-   → отправляет в VseGPT → результат → загрузка в Supabase Storage
-2. GET /generations/{id} → статус + подписанные URL
 """
 
 from __future__ import annotations
@@ -30,10 +25,34 @@ logger = logging.getLogger(__name__)
 
 VSEGPT_API_BASE = "https://api.vsegpt.ru/v1"
 
+# Модель по умолчанию — img2img FLUX Kontext Pro (7.5₽/image).
+# НЕ зависит от VSEGPT_MODEL env var, т.к. на Render может быть
+# устаревшее значение из Dashboard.
+DEFAULT_VSEGPT_MODEL = "img2img-flux/kontext-pro-edit"
+
+
+def _get_model() -> str:
+    """Возвращает модель для генерации.
+
+    Приоритет: VSEGPT_MODEL env var (если валидная img2img модель),
+    затем DEFAULT_VSEGPT_MODEL.
+    """
+    env_model = settings.vsegpt_model
+    if env_model and env_model.startswith("img2img-"):
+        return env_model
+    if env_model and env_model != "stabilityai/stable-diffusion-xl-base-1.0":
+        logger.warning(
+            "VSEGPT_MODEL=%s не является img2img моделью, использую %s",
+            env_model,
+            DEFAULT_VSEGPT_MODEL,
+        )
+    return DEFAULT_VSEGPT_MODEL
+
 
 def _headers() -> dict[str, str]:
     return {
         "Authorization": f"Bearer {settings.vsegpt_api_key}",
+        "Content-Type": "application/json",
     }
 
 
@@ -43,57 +62,47 @@ async def generate_image(
 ) -> dict[str, Any]:
     """Запускает img2img генерацию на VseGPT.ru.
 
-    Скачивает исходное фото по URL, отправляет в VseGPT через
-    /v1/images/edit (multipart form data, OpenAI-совместимый формат).
+    Использует /v1/images/generations с image URL в JSON body
+    (VseGPT-расширение OpenAI API для img2img моделей).
 
     Args:
-        image_url: URL исходного фото (доступный для бэкенда).
+        image_url: URL исходного фото (доступный для VseGPT).
         prompt: промпт стиля.
 
     Returns:
         Ответ VseGPT с URL или base64 результата.
-        {"data": [{"url": "https://..."}]} или {"data": [{"b64_json": "..."}]}
     """
     if not settings.vsegpt_api_key:
         raise RuntimeError("VSEGPT_API_KEY не задан на бэкенде")
 
-    # 1. Скачиваем исходное изображение.
-    logger.info("Скачиваю исходное фото для VseGPT: %s", image_url[:100])
-    async with httpx.AsyncClient(timeout=30) as client:
-        img_resp = await client.get(image_url)
-        img_resp.raise_for_status()
-        image_bytes = img_resp.content
-
-    content_type = img_resp.headers.get("content-type", "image/jpeg")
-    ext = "png" if "png" in content_type else "jpg"
-    filename = f"source.{ext}"
-
+    model = _get_model()
     logger.info(
-        "Фото скачано (%d байт), отправляю в VseGPT model=%s",
-        len(image_bytes),
-        settings.vsegpt_model,
+        "VseGPT: model=%s, image_url=%s..., prompt=%s...",
+        model,
+        image_url[:80],
+        prompt[:50],
     )
 
-    # 2. Отправляем в VseGPT через /v1/images/edit (multipart form data).
-    url = f"{VSEGPT_API_BASE}/images/edit"
-
-    files = {"image": (filename, image_bytes, content_type)}
-    data = {
-        "model": settings.vsegpt_model,
+    payload: dict[str, Any] = {
+        "model": model,
         "prompt": prompt,
-        "n": "1",
+        "image": image_url,
+        "mode": "image-to-image",
+        "n": 1,
         "response_format": "url",
     }
 
+    url = f"{VSEGPT_API_BASE}/images/generations"
+
     async with httpx.AsyncClient(timeout=180) as client:
-        resp = await client.post(url, files=files, data=data, headers=_headers())
+        resp = await client.post(url, json=payload, headers=_headers())
         if not resp.is_success:
             logger.error(
                 "VseGPT API error %s: %s\nURL: %s\nModel: %s",
                 resp.status_code,
                 resp.text[:500],
                 url,
-                settings.vsegpt_model,
+                model,
             )
             raise RuntimeError(
                 f"VseGPT {resp.status_code}: {resp.text[:300]}"

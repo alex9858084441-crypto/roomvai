@@ -476,7 +476,7 @@ async def debug_vsegpt_test(image_url: str) -> dict:
         images = data.get("data", [])
         return {
             "success": True,
-            "model": settings.vsegpt_model,
+            "model": vsegpt_client._get_model(),
             "images_count": len(images),
             "first_keys": list(images[0].keys()) if images else [],
             "response_preview": str(data)[:500],
@@ -484,7 +484,7 @@ async def debug_vsegpt_test(image_url: str) -> dict:
     except Exception as exc:
         return {
             "success": False,
-            "model": settings.vsegpt_model,
+            "model": vsegpt_client._get_model(),
             "error": str(exc)[:500],
             "error_type": type(exc).__name__,
         }
