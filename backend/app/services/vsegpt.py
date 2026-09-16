@@ -1,16 +1,18 @@
 """Клиент VseGPT.ru API. Ключ — ТОЛЬКО на бэкенде.
 
 VseGPT.ru: https://vsegpt.ru
-Прокси к моделям генерации изображений (SDXL и др.).
+Прокси к моделям генерации изображений (FLUX, Google, Recraft и др.).
 Принимает российские карты и СБП.
 
 API совместим с OpenAI Images API:
-- POST /v1/images/generations
+- POST /v1/images/edit — img2img (редактирование изображения по промпту)
 - Авторизация: Bearer <ключ>
+- multipart/form-data: image (файл), prompt, model, n, response_format
 - Возвращает {"data": [{"url": "..."}]} или {"data": [{"b64_json": "..."}]}
 
 Поток:
-1. POST /generate → vsegpt.generate_image() → результат сразу → загрузка в Supabase Storage
+1. POST /generate → vsegpt.generate_image() → скачивает исходное фото
+   → отправляет в VseGPT → результат → загрузка в Supabase Storage
 2. GET /generations/{id} → статус + подписанные URL
 """
 
@@ -32,7 +34,6 @@ VSEGPT_API_BASE = "https://api.vsegpt.ru/v1"
 def _headers() -> dict[str, str]:
     return {
         "Authorization": f"Bearer {settings.vsegpt_api_key}",
-        "Content-Type": "application/json",
     }
 
 
@@ -42,8 +43,11 @@ async def generate_image(
 ) -> dict[str, Any]:
     """Запускает img2img генерацию на VseGPT.ru.
 
+    Скачивает исходное фото по URL, отправляет в VseGPT через
+    /v1/images/edit (multipart form data, OpenAI-совместимый формат).
+
     Args:
-        image_url: URL исходного фото (доступный для VseGPT.ru).
+        image_url: URL исходного фото (доступный для бэкенда).
         prompt: промпт стиля.
 
     Returns:
@@ -53,46 +57,59 @@ async def generate_image(
     if not settings.vsegpt_api_key:
         raise RuntimeError("VSEGPT_API_KEY не задан на бэкенде")
 
-    payload: dict[str, Any] = {
+    # 1. Скачиваем исходное изображение.
+    logger.info("Скачиваю исходное фото для VseGPT: %s", image_url[:100])
+    async with httpx.AsyncClient(timeout=30) as client:
+        img_resp = await client.get(image_url)
+        img_resp.raise_for_status()
+        image_bytes = img_resp.content
+
+    content_type = img_resp.headers.get("content-type", "image/jpeg")
+    ext = "png" if "png" in content_type else "jpg"
+    filename = f"source.{ext}"
+
+    logger.info(
+        "Фото скачано (%d байт), отправляю в VseGPT model=%s",
+        len(image_bytes),
+        settings.vsegpt_model,
+    )
+
+    # 2. Отправляем в VseGPT через /v1/images/edit (multipart form data).
+    url = f"{VSEGPT_API_BASE}/images/edit"
+
+    files = {"image": (filename, image_bytes, content_type)}
+    data = {
         "model": settings.vsegpt_model,
         "prompt": prompt,
-        "negative_prompt": (
-            "low quality, blurry, distorted geometry, deformed walls, "
-            "extra doors, watermark, text"
-        ),
-        "mode": "image-to-image",
-        "image": image_url,
-        "strength": settings.ml_strength,
-        "steps": settings.ml_num_inference_steps,
-        "cfg_scale": 7.5,
-        "n": 1,
+        "n": "1",
         "response_format": "url",
     }
 
-    url = f"{VSEGPT_API_BASE}/images/generations"
-
     async with httpx.AsyncClient(timeout=180) as client:
-        resp = await client.post(url, json=payload, headers=_headers())
+        resp = await client.post(url, files=files, data=data, headers=_headers())
         if not resp.is_success:
             logger.error(
-                "VseGPT API error %s: %s\nURL: %s",
+                "VseGPT API error %s: %s\nURL: %s\nModel: %s",
                 resp.status_code,
                 resp.text[:500],
                 url,
+                settings.vsegpt_model,
             )
             raise RuntimeError(
                 f"VseGPT {resp.status_code}: {resp.text[:300]}"
             )
-        data = resp.json()
+        result = resp.json()
+
+    logger.info("VseGPT ответил успешно, обрабатываю результат")
 
     # Нормализуем ответ: если вернулся b64_json — декодируем в data URL.
-    images = data.get("data", [])
+    images = result.get("data", [])
     if images and "b64_json" in images[0] and "url" not in images[0]:
         b64 = images[0]["b64_json"]
         images[0]["url"] = f"data:image/png;base64,{b64}"
         images[0]["b64_json"] = b64
 
-    return data
+    return result
 
 
 def get_image_bytes(data: dict[str, Any]) -> bytes | None:
@@ -115,6 +132,6 @@ def get_image_bytes(data: dict[str, Any]) -> bytes | None:
 def estimate_cost(data: dict[str, Any]) -> float:
     """Оценка стоимости генерации в USD.
 
-    VseGPT.ru: SDXL img2img ~2-5₽/image ≈ $0.03-0.05.
+    VseGPT.ru: FLUX Kontext Pro img2img ~7.5₽/image ≈ $0.08.
     """
-    return 0.04
+    return 0.08

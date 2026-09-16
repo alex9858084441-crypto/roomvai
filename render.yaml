@@ -29,7 +29,7 @@ services:
       - key: VSEGPT_API_KEY
         sync: false      # https://vsegpt.ru (раздел API-ключи)
       - key: VSEGPT_MODEL
-        value: stabilityai/stable-diffusion-xl-base-1.0
+        value: img2img-flux/kontext-pro-edit
       - key: POSTHOG_KEY
         sync: false
     autoDeploy: true

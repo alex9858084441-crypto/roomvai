@@ -33,8 +33,8 @@ class Settings:
     # --- VseGPT.ru API (ключ — ТОЛЬКО на бэкенде) ---
     # VseGPT.ru: прокси к SDXL и др. моделям. Принимает российские карты/СБП.
     vsegpt_api_key: str = ""
-    # Модель: SDXL img2img.
-    vsegpt_model: str = "stabilityai/stable-diffusion-xl-base-1.0"
+    # Модель: FLUX.1 Kontext [pro] Image Edit (img2img через /v1/images/edit).
+    vsegpt_model: str = "img2img-flux/kontext-pro-edit"
 
     # --- Хранилище ---
     source_images_bucket: str = "source-images"
@@ -88,7 +88,7 @@ def _get_settings() -> Settings:
         supabase_url=os.getenv("SUPABASE_URL", ""),
         supabase_service_role_key=os.getenv("SUPABASE_SERVICE_ROLE_KEY", ""),
         vsegpt_api_key=os.getenv("VSEGPT_API_KEY", ""),
-        vsegpt_model=os.getenv("VSEGPT_MODEL", "stabilityai/stable-diffusion-xl-base-1.0"),
+        vsegpt_model=os.getenv("VSEGPT_MODEL", "img2img-flux/kontext-pro-edit"),
         source_images_bucket=os.getenv("SOURCE_IMAGES_BUCKET", "source-images"),
         result_images_bucket=os.getenv("RESULT_IMAGES_BUCKET", "result-images"),
         ml_mode=os.getenv("ML_MODE", "mock"),
