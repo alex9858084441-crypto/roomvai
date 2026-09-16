@@ -344,7 +344,7 @@ async def _run_single_prediction(
             img_resp.raise_for_status()
             image_bytes = img_resp.content
 
-    filename = f"{generation_id}_{style.value}.png"
+    filename = f"{generation_id}_{style.value}.jpg"
     storage_path = await supabase_admin.upload_result_image(
         image_bytes, user_id, filename
     )

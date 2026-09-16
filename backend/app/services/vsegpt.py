@@ -86,7 +86,8 @@ async def generate_image(
     payload: dict[str, Any] = {
         "model": model,
         "prompt": prompt,
-        "image": image_url,
+        "image_url": image_url,
+        "response_format": "b64_json",
     }
 
     url = f"{VSEGPT_API_BASE}/images/generations"

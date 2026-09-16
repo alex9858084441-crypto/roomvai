@@ -164,12 +164,13 @@ async def upload_result_image(
     folder = user_id or "anonymous"
     path = f"{folder}/{filename}"
     url = f"{_base()}/storage/v1/object/{bucket}/{path}"
+    content_type = "image/jpeg" if image_bytes.startswith(b"\xff\xd8") else "image/png"
 
     async with httpx.AsyncClient(timeout=30) as client:
         resp = await client.post(
             url,
             content=image_bytes,
-            headers={**_headers(), "Content-Type": "image/png", "x-upsert": "true"},
+            headers={**_headers(), "Content-Type": content_type, "x-upsert": "true"},
         )
         resp.raise_for_status()
     return path
