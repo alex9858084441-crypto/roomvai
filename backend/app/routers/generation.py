@@ -460,14 +460,65 @@ async def serve_output_image(filename: str) -> Response:
 
 @router.post("/debug/vsegpt-test")
 async def debug_vsegpt_test(image_url: str) -> dict:
-    """Прямой вызов VseGPT — возвращает реальный ответ или ошибку.
-
-    Только для диагностики: показывает, что именно возвращает VseGPT.
-    """
+    """Прямой вызов VseGPT с перебором форматов — находит рабочий."""
     if not settings.vsegpt_api_key:
         return {"error": "VSEGPT_API_KEY не задан"}
     if _is_mock():
         return {"error": "ML_MODE=mock, VseGPT не вызывается"}
+
+    import httpx
+    base = vsegpt_client.VSEGPT_API_BASE
+    model = vsegpt_client._get_model()
+    headers = {
+        "Authorization": f"Bearer {settings.vsegpt_api_key}",
+        "Content-Type": "application/json",
+    }
+
+    # Разные варианты payload для img2img.
+    variants = [
+        {"model": model, "prompt": "Modern loft interior", "image": image_url, "response_format": "b64_json"},
+        {"model": model, "prompt": "Modern loft interior", "image": image_url},
+        {"model": model, "prompt": "Modern loft interior", "image_url": image_url, "response_format": "b64_json"},
+        {"model": model, "prompt": "Modern loft interior", "image_url": image_url},
+        {"model": model, "prompt": "Modern loft interior", "images": [image_url], "response_format": "b64_json"},
+        {"model": model, "prompt": "Modern loft interior", "input": image_url, "response_format": "b64_json"},
+    ]
+
+    results = []
+    async with httpx.AsyncClient(timeout=60) as client:
+        for i, payload in enumerate(variants):
+            keys = list(payload.keys())
+            try:
+                resp = await client.post(
+                    f"{base}/images/generations", json=payload, headers=headers
+                )
+                if resp.is_success:
+                    data = resp.json()
+                    results.append({
+                        "variant": i,
+                        "keys": keys,
+                        "success": True,
+                        "data_keys": list(data.keys()),
+                        "preview": str(data)[:300],
+                    })
+                    break
+                else:
+                    results.append({
+                        "variant": i,
+                        "keys": keys,
+                        "success": False,
+                        "status": resp.status_code,
+                        "error": resp.text[:200],
+                    })
+            except Exception as exc:
+                results.append({
+                    "variant": i,
+                    "keys": keys,
+                    "success": False,
+                    "error": str(exc)[:200],
+                })
+
+    return {"model": model, "variants": results}
 
     try:
         data = await vsegpt_client.generate_image(
