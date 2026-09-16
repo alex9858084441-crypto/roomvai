@@ -7,10 +7,12 @@
 from __future__ import annotations
 
 import asyncio
+import io
 import time
 
 import httpx
 import pytest
+from PIL import Image
 
 from app.config import settings
 from app.main import app
@@ -66,6 +68,23 @@ async def test_list_styles(client: httpx.AsyncClient):
     styles = response.json()
     assert len(styles) >= 6
     assert all("id" in s and "name" in s for s in styles)
+
+
+@pytest.mark.asyncio
+async def test_upload_returns_url_in_mock_mode(client: httpx.AsyncClient):
+    """В mock-режиме /upload возвращает заглушку без обращения к Supabase."""
+    buf = io.BytesIO()
+    Image.new("RGB", (1, 1), (200, 200, 200)).save(buf, format="PNG")
+    png_bytes = buf.getvalue()
+
+    response = await client.post(
+        "/upload",
+        files={"file": ("test.png", png_bytes, "image/png")},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert "url" in body
+    assert "path" in body
 
 
 @pytest.mark.asyncio

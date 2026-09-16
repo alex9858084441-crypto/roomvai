@@ -1,6 +1,6 @@
 /**
- * API-клиент к backend (FastAPI). Backend проксирует запросы к Replicate
- * и Supabase — ключ Replicate НИКОГДА не покидает сервер (раздел 10).
+ * API-клиент к backend (FastAPI). Backend проксирует запросы к VseGPT.ru
+ * и Supabase — ключ VseGPT НИКОГДА не покидает сервер (раздел 10).
  *
  * Этап 4: POC — один результат. Этап 5 — мультистили + параллельность.
  */
@@ -18,6 +18,7 @@ function apiUrl(path: string): string {
 export function assetUrl(relative: string | undefined): string | undefined {
   if (!relative) return undefined;
   if (relative.startsWith("http")) return relative;
+  if (relative.startsWith("mock://")) return undefined;
   return `${API_URL.replace(/\/$/, "")}${relative}`;
 }
 
@@ -28,8 +29,45 @@ export async function fetchStyles(): Promise<import("../../types").StyleInfo[]> 
 }
 
 /**
- * Запуск генерации. Фото уже загружены в Supabase Storage на этапе 3 —
- * сюда передаём URL/пути. Backend запускает Replicate prediction с webhook.
+ * Загрузка исходного фото на бэкенд.
+ * Бэкенд загружает в Supabase Storage (service_role) и возвращает
+ * подписанный URL, который передаётся в /generate и доступен VseGPT.ru.
+ */
+export async function uploadImage(
+  uri: string,
+  userId?: string | null,
+): Promise<{ url: string; path: string }> {
+  const filename = uri.split("/").pop() ?? "photo.jpg";
+  const fileExt = filename.split(".").pop()?.toLowerCase() ?? "jpg";
+  const contentType = fileExt === "png" ? "image/png" : "image/jpeg";
+
+  const formData = new FormData();
+  formData.append("file", {
+    uri,
+    name: filename,
+    type: contentType,
+  } as any);
+
+  const uploadUrl = userId
+    ? apiUrl(`/upload?user_id=${encodeURIComponent(userId)}`)
+    : apiUrl("/upload");
+
+  const res = await fetch(uploadUrl, {
+    method: "POST",
+    body: formData,
+    headers: { Accept: "application/json" },
+  });
+
+  if (!res.ok) {
+    const detail = await res.text();
+    throw new Error(`Upload failed (${res.status}): ${detail}`);
+  }
+  return res.json();
+}
+
+/**
+ * Запуск генерации. Фото уже загружены через /upload — сюда передаём
+ * подписанные URL из Supabase Storage. Backend запускает VseGPT.ru.
  *
  * Принимает 2–4 фотографии комнаты с разных углов.
  */

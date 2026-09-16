@@ -4,12 +4,15 @@
  */
 
 import React, { useState } from "react";
-import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 
 import { COLORS, RADIUS, SPACING } from "../constants/theme";
 import { MAX_STYLES_FREE, MAX_STYLES_PRO } from "../constants/plans";
+import { uploadImage } from "../services/api/client";
+import { getCurrentUserId } from "../services/supabase/client";
+import { track } from "../services/api/analytics";
 import type { RootStackParamList } from "../types/navigation";
 import type { StyleId } from "../types";
 
@@ -36,6 +39,7 @@ export function StyleSelectScreen({
   const { t } = useTranslation();
   const { imageUris } = route.params;
   const [selected, setSelected] = useState<Set<StyleId>>(new Set());
+  const [uploading, setUploading] = useState(false);
 
   // TODO этап 7: проверка подписки → maxStyles = MAX_STYLES_PRO
   const maxStyles = MAX_STYLES_FREE;
@@ -49,12 +53,30 @@ export function StyleSelectScreen({
     });
   };
 
-  const handleGenerate = () => {
+  const handleGenerate = async () => {
     if (selected.size === 0) return;
-    navigation.navigate("Generating", {
-      imageUris,
-      styles: [...selected],
-    });
+    setUploading(true);
+    try {
+      // Загружаем все фото на бэкенд → получаем подписанные URL для VseGPT.
+      const userId = await getCurrentUserId();
+      const uploadedUrls = await Promise.all(
+        imageUris.map((uri) => uploadImage(uri, userId)),
+      );
+
+      track("photos_uploaded", { count: uploadedUrls.length });
+
+      navigation.navigate("Generating", {
+        imageUris: uploadedUrls.map((r) => r.url),
+        styles: [...selected],
+      });
+    } catch (e) {
+      track("upload_failed", { error: String(e) });
+      alert(
+        `${t("common.error")}: ${e instanceof Error ? e.message : String(e)}`,
+      );
+    } finally {
+      setUploading(false);
+    }
   };
 
   const renderItem = ({ item }: { item: StyleId }) => {
@@ -82,9 +104,15 @@ export function StyleSelectScreen({
         ItemSeparatorComponent={() => <View style={{ height: SPACING.sm }} />}
         columnWrapperStyle={{ justifyContent: "space-between" }}
       />
+      {uploading && (
+        <View style={styles.uploadOverlay}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+          <Text style={styles.uploadText}>{t("common.loading")}</Text>
+        </View>
+      )}
       <Pressable
-        style={[styles.btn, selected.size === 0 && styles.btnDisabled]}
-        disabled={selected.size === 0}
+        style={[styles.btn, (selected.size === 0 || uploading) && styles.btnDisabled]}
+        disabled={selected.size === 0 || uploading}
         onPress={handleGenerate}
       >
         <Text style={styles.btnText}>{t("home.generate")}</Text>
@@ -110,6 +138,21 @@ const styles = StyleSheet.create({
   },
   cardActive: { borderColor: COLORS.primary, borderWidth: 2 },
   cardTitle: { color: COLORS.text, fontSize: 14, fontWeight: "600" },
+  uploadOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  uploadText: {
+    color: "#fff",
+    fontSize: 14,
+    marginTop: SPACING.sm,
+  },
   btn: {
     backgroundColor: COLORS.accent,
     borderRadius: RADIUS.md,

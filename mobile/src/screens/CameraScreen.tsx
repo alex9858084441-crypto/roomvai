@@ -1,7 +1,8 @@
 /**
- * Этап 3: камера/галерея + загрузка в Storage.
+ * Этап 3: камера/галерея + компрессия.
  * Мульти-съёмка: 2–4 фото комнаты с разных углов.
- * Компрессия до 1536px → загрузка в Supabase Storage → переход к выбору стиля.
+ * Компрессия до 1536px → превью → переход к выбору стиля.
+ * Загрузка на бэкенд происходит в StyleSelectScreen (через /upload).
  * Обработка отказа в доступе (раздел 7).
  */
 
@@ -22,7 +23,6 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 
 import { COLORS, RADIUS, SPACING } from "../constants/theme";
 import { compressImage } from "../utils/image";
-import { getCurrentUserId, uploadSourceImage } from "../services/supabase/client";
 import { track } from "../services/api/analytics";
 import type { RootStackParamList } from "../types/navigation";
 
@@ -43,13 +43,6 @@ export function CameraScreen({ navigation }: { navigation: Nav }) {
     setLoading(true);
     try {
       const compressedUri = await compressImage(rawUri);
-
-      // Загрузка в Supabase Storage (приватный bucket).
-      const userId = await getCurrentUserId();
-      if (userId) {
-        await uploadSourceImage(compressedUri, userId);
-      }
-
       setPhotos((prev) => [...prev, compressedUri]);
       track("photo_taken", { count: photos.length + 1 });
     } catch (e) {

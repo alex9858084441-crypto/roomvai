@@ -27,7 +27,9 @@ const FACT_KEYS = [
   "generating.fact5",
 ] as const;
 
-const BACKOFF_STEPS = [2000, 3000, 5000, 8000, 13000, 15000, 15000]; // exponential backoff
+// exponential backoff; последний интервал повторяется до MAX_ATTEMPTS.
+const BACKOFF_STEPS = [2000, 3000, 5000, 8000, 13000, 15000, 15000];
+const MAX_ATTEMPTS = 40; // ~8 минут макс. ожидания
 
 export function GeneratingScreen({
   navigation,
@@ -53,43 +55,73 @@ export function GeneratingScreen({
     );
 
     const run = async () => {
+      let generationId: string;
       try {
-        const { generationId } = await startGeneration(
+        const result = await startGeneration(
           imageUris,
           styles,
           "living_room",
         );
-
-        // Опрос статуса с exponential backoff.
-        const poll = async () => {
-          if (cancelled) return;
-          const gen = await fetchGeneration(generationId);
-
-          if (gen.status === "completed" || gen.status === "failed") {
-            if (gen.status === "completed" && gen.results.length) {
-              track("generation_completed");
-              navigation.replace("Result", {
-                generationId,
-                originalImageUris: imageUris,
-              });
-            } else {
-              setError(t("errors.generationFailed"));
-            }
-            return;
-          }
-
-          // Следующая попытка с backoff.
-          const delay = BACKOFF_STEPS[Math.min(attemptRef.current, BACKOFF_STEPS.length - 1)];
-          attemptRef.current += 1;
-          setTimeout(poll, delay);
-        };
-
-        poll();
+        generationId = result.generationId;
       } catch (e) {
         if (!cancelled) {
           setError(e instanceof Error ? e.message : String(e));
         }
+        return;
       }
+
+      // Опрос статуса с exponential backoff.
+      const poll = async () => {
+        if (cancelled) return;
+
+        let gen;
+        try {
+          gen = await fetchGeneration(generationId);
+        } catch (e) {
+          // Сетевая ошибка / 404 — пробуем ещё раз, пока не исчерпаем попытки.
+          attemptRef.current += 1;
+          if (attemptRef.current >= MAX_ATTEMPTS) {
+            if (!cancelled) {
+              setError(e instanceof Error ? e.message : String(e));
+            }
+            return;
+          }
+          const delay =
+            BACKOFF_STEPS[
+              Math.min(attemptRef.current - 1, BACKOFF_STEPS.length - 1)
+            ];
+          setTimeout(poll, delay);
+          return;
+        }
+
+        if (gen.status === "completed" || gen.status === "failed") {
+          if (gen.status === "completed" && gen.results.length) {
+            track("generation_completed");
+            navigation.replace("Result", {
+              generationId,
+              originalImageUris: imageUris,
+            });
+          } else {
+            setError(t("errors.generationFailed"));
+          }
+          return;
+        }
+
+        // Следующая попытка с backoff.
+        attemptRef.current += 1;
+        if (attemptRef.current >= MAX_ATTEMPTS) {
+          if (!cancelled) {
+            setError(t("errors.generationFailed"));
+          }
+          return;
+        }
+        const delay = BACKOFF_STEPS[
+          Math.min(attemptRef.current - 1, BACKOFF_STEPS.length - 1)
+        ];
+        setTimeout(poll, delay);
+      };
+
+      poll();
     };
 
     run();

@@ -15,7 +15,7 @@ services:
     healthCheckPath: /health
     envVars:
       - key: ML_MODE
-        value: replicate
+        value: vsegpt
       - key: UPLOADS_DIR
         value: /tmp/uploads
       - key: OUTPUT_DIR
@@ -26,10 +26,10 @@ services:
         sync: false      # ввести через Dashboard
       - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false
-      - key: REPLICATE_API_TOKEN
-        sync: false
-      - key: WEBHOOK_BASE_URL
-        sync: false      # https://roomvai-backend.onrender.com
+      - key: VSEGPT_API_KEY
+        sync: false      # https://vsegpt.ru (раздел API-ключи)
+      - key: VSEGPT_MODEL
+        value: stabilityai/stable-diffusion-xl-base-1.0
       - key: POSTHOG_KEY
         sync: false
     autoDeploy: true

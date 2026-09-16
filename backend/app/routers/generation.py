@@ -1,6 +1,8 @@
 """Эндпоинты генерации: приём фото, запуск VseGPT.ru, опрос статуса.
 
 Поток (раздел 4):
+- POST /upload: приём фото от клиента → загрузка в Supabase Storage
+  (service_role) → возврат подписанного URL
 - POST /generate: квота → создание generation в БД → параллельный запуск
   генераций на VseGPT.ru (asyncio.gather) → возврат generation_id
 - GET /generations/{id}: статус + результаты
@@ -15,9 +17,10 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 
 import httpx
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, File, HTTPException, Request, UploadFile
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel
 
@@ -40,9 +43,71 @@ class GenerateResponse(BaseModel):
     status: str
 
 
+class UploadResponse(BaseModel):
+    url: str
+    path: str
+
+
 def _is_mock() -> bool:
     return settings.ml_mode == "mock"
 
+
+# ============================================================================
+# Загрузка исходного фото (клиент → бэкенд → Supabase Storage)
+# ============================================================================
+
+@router.post("/upload", response_model=UploadResponse)
+async def upload_image(
+    file: UploadFile = File(...),
+    user_id: str | None = None,
+) -> JSONResponse:
+    """Принимает фото от клиента, загружает в Supabase Storage через service_role.
+
+    Возвращает подписанный URL, который клиент передаёт в /generate.
+    Загрузка через бэкенд (а не напрямую в Supabase) нужна потому что:
+    1. Анонимные пользователи не могут писать в приватный bucket (RLS).
+    2. VseGPT.ru нужен публично доступный URL, а не локальный file:// URI.
+    """
+    # Mock-режим: Supabase недоступен, возвращаем заглушку.
+    if _is_mock():
+        return JSONResponse(
+            status_code=200,
+            content={"url": "mock://image", "path": "mock/image.jpg"},
+        )
+
+    # Проверка размера и типа.
+    content = await file.read()
+    if len(content) > settings.max_upload_size_bytes:
+        raise HTTPException(
+            status_code=413,
+            detail=f"Файл слишком большой (макс. {settings.max_upload_size_mb} МБ)",
+        )
+    if file.content_type not in settings.allowed_content_types:
+        raise HTTPException(
+            status_code=415,
+            detail=f"Неподдерживаемый тип файла: {file.content_type}",
+        )
+
+    ext = "png" if file.content_type == "image/png" else "jpg"
+    filename = f"{int(time.time() * 1000)}.{ext}"
+
+    try:
+        path, signed_url = await supabase_admin.upload_source_image(
+            content, user_id, filename
+        )
+    except Exception as exc:
+        logger.exception("Ошибка загрузки фото в Supabase Storage")
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+    return JSONResponse(
+        status_code=200,
+        content={"url": signed_url, "path": path},
+    )
+
+
+# ============================================================================
+# Запуск генерации
+# ============================================================================
 
 @router.post("/generate", response_model=GenerateResponse, status_code=202)
 async def generate(

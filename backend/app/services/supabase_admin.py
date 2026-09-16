@@ -175,6 +175,34 @@ async def upload_result_image(
     return path
 
 
+async def upload_source_image(
+    image_bytes: bytes,
+    user_id: str | None,
+    filename: str,
+) -> tuple[str, str]:
+    """Загружает исходное фото в Storage через service_role, возвращает (путь, подписанный URL).
+
+    Используется бэкендом для приёма фото от клиента: обходит RLS
+    (работает для анонимных пользователей), возвращает подписанный URL,
+    который можно передать в VseGPT.ru.
+    """
+    bucket = settings.source_images_bucket
+    folder = user_id or "anonymous"
+    path = f"{folder}/{filename}"
+    url = f"{_base()}/storage/v1/object/{bucket}/{path}"
+
+    async with httpx.AsyncClient(timeout=30) as client:
+        resp = await client.post(
+            url,
+            content=image_bytes,
+            headers={**_headers(), "Content-Type": "image/jpeg", "x-upsert": "true"},
+        )
+        resp.raise_for_status()
+
+    signed_url = await create_signed_url(bucket, path)
+    return path, signed_url
+
+
 async def create_signed_url(bucket: str, path: str) -> str:
     """Создаёт подписанный URL для приватного файла."""
     url = f"{_base()}/storage/v1/object/create-signed-url/{bucket}/{path}"
