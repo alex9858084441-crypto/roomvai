@@ -20,7 +20,7 @@ import logging
 import time
 
 import httpx
-from fastapi import APIRouter, BackgroundTasks, File, HTTPException, Request, UploadFile
+from fastapi import APIRouter, File, HTTPException, Request, UploadFile
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel
 
@@ -114,7 +114,6 @@ async def upload_image(
 @router.post("/generate", response_model=GenerateResponse, status_code=202)
 async def generate(
     request: Request,
-    background_tasks: BackgroundTasks,
     image_urls: str = "",
     room_type: RoomType = RoomType.other,
     styles: str = "loft",
@@ -160,7 +159,7 @@ async def generate(
             room_type=room_type.value,
             styles=[s.value for s in style_ids],
         )
-        background_tasks.add_task(_run_mock_styles, gen.id, style_ids)
+        asyncio.create_task(_run_mock_styles(gen.id, style_ids))
         return JSONResponse(
             status_code=202,
             content={"generation_id": gen.id, "status": "processing"},
@@ -191,12 +190,13 @@ async def generate(
         raise HTTPException(status_code=502, detail=str(exc)) from exc
 
     # Параллельный запуск всех стилей (asyncio.gather — аналог Promise.all).
-    background_tasks.add_task(
-        _run_all_styles,
-        generation_id=generation_id,
-        user_id=user_id,
-        image_urls=url_list,
-        styles=style_ids,
+    asyncio.create_task(
+        _run_all_styles(
+            generation_id=generation_id,
+            user_id=user_id,
+            image_urls=url_list,
+            styles=style_ids,
+        )
     )
 
     return JSONResponse(
