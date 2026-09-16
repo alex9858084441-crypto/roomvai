@@ -6,7 +6,7 @@ VseGPT.ru: https://vsegpt.ru
 API (OpenAI-совместимый, но с расширениями для img2img):
 - POST /v1/images/generations — единственный доступный endpoint для картинок
 - Авторизация: Bearer <ключ>
-- JSON body: model, prompt, image (URL), mode, n, response_format
+- JSON body: model, prompt, image (URL), mode, n, response_format=b64_json
 - img2img модели имеют префикс "img2img-"
 - Возвращает {"data": [{"url": "..."}]} или {"data": [{"b64_json": "..."}]}
 """
@@ -89,7 +89,7 @@ async def generate_image(
         "image": image_url,
         "mode": "image-to-image",
         "n": 1,
-        "response_format": "url",
+        "response_format": "b64_json",
     }
 
     url = f"{VSEGPT_API_BASE}/images/generations"
