@@ -204,12 +204,23 @@ async def upload_source_image(
 
 
 async def create_signed_url(bucket: str, path: str) -> str:
-    """Создаёт подписанный URL для приватного файла."""
-    url = f"{_base()}/storage/v1/object/create-signed-url/{bucket}/{path}"
+    """Создаёт подписанный URL для приватного файла.
+
+    Использует /object/sign/ endpoint (вместо /object/create-signed-url/,
+    который возвращает NoSuchBucket в текущей версии Supabase).
+    Возвращает абсолютный URL.
+    """
+    url = f"{_base()}/storage/v1/object/sign/{bucket}/{path}"
     async with httpx.AsyncClient(timeout=15) as client:
         resp = await client.post(url, json={"expiresIn": 3600}, headers=_headers())
         resp.raise_for_status()
-        return resp.json()["signedURL"]
+        signed_path = resp.json()["signedURL"]
+
+    # signed_path может быть относительным (/object/sign/...?token=...) —
+    # делаем абсолютным.
+    if signed_path.startswith("http"):
+        return signed_path
+    return f"{_base()}/storage/v1{signed_path}"
 
 
 async def check_quota(user_id: str | None) -> bool:
