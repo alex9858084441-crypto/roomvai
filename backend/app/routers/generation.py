@@ -269,7 +269,12 @@ async def _run_all_styles(
         _run_single_prediction(generation_id, user_id, image_urls, s)
         for s in styles
     ]
-    await asyncio.gather(*tasks, return_exceptions=True)
+    try:
+        await asyncio.gather(*tasks, return_exceptions=True)
+    except Exception:
+        logger.exception("Unexpected error in _run_all_styles for %s", generation_id)
+    finally:
+        await _maybe_complete_generation(generation_id)
 
 
 async def _run_single_prediction(
