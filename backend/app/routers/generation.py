@@ -37,6 +37,8 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["generation"])
 
+STALE_PROCESSING_SECONDS = 300  # 5 минут — после этого считаем задачу умершей.
+
 
 class GenerateResponse(BaseModel):
     generation_id: str
@@ -384,6 +386,37 @@ async def get_generation(generation_id: str) -> dict:
     generation = await supabase_admin.fetch_generation(generation_id)
     if not generation:
         raise HTTPException(status_code=404, detail="Генерация не найдена")
+
+    # Recovery: если генерация висит > 5 минут, помечаем как failed.
+    # Render free tier может убить процесс — задача никогда не завершится.
+    if generation.get("status") == "processing":
+        created_at = generation.get("created_at")
+        if created_at is not None:
+            from datetime import datetime, timezone
+            if isinstance(created_at, str):
+                created_at = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+            age_seconds = (datetime.now(timezone.utc) - created_at).total_seconds()
+            if age_seconds > STALE_PROCESSING_SECONDS:
+                logger.warning(
+                    "Stale generation %s (age %.0fs), marking as failed",
+                    generation_id,
+                    age_seconds,
+                )
+                await supabase_admin.update_generation_status(
+                    generation_id, "failed"
+                )
+                results = await supabase_admin.fetch_results(generation_id)
+                for r in results:
+                    if r.get("status") in ("pending", "processing"):
+                        try:
+                            await supabase_admin.update_result(
+                                r["id"],
+                                status="failed",
+                                error="Превышено время ожидания генерации",
+                            )
+                        except Exception:
+                            logger.exception("Не удалось пометить result %s failed", r["id"])
+                generation["status"] = "failed"
 
     results = await supabase_admin.fetch_results(generation_id)
 
