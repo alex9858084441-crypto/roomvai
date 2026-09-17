@@ -561,6 +561,25 @@ async def debug_full_generate_test(image_url: str) -> dict:
         generation_id = generation["id"]
         logger.info("Debug: created generation %s", generation_id)
 
+        # Шаг 1: прямой вызов VseGPT generate_image.
+        prompt = get_style_prompt(StyleId("loft"))
+        vsegpt_data = await vsegpt_client.generate_image(image_url, prompt)
+        vsegpt_info = {
+            "has_data": bool(vsegpt_data.get("data")),
+            "images_count": len(vsegpt_data.get("data", [])),
+            "first_keys": (
+                list(vsegpt_data["data"][0].keys())
+                if vsegpt_data.get("data")
+                else []
+            ),
+            "b64_len": (
+                len(vsegpt_data["data"][0].get("b64_json", ""))
+                if vsegpt_data.get("data")
+                else 0
+            ),
+        }
+        return {"step": "vsegpt_ok", "vsegpt": vsegpt_info}
+
         style = StyleId("loft")
         await _run_single_prediction(
             generation_id, None, [image_url], style
