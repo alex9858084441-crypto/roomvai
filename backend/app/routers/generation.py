@@ -39,6 +39,10 @@ router = APIRouter(tags=["generation"])
 
 STALE_PROCESSING_SECONDS = 300  # 5 минут — после этого считаем задачу умершей.
 
+# Ссылки на запущенные задачи, чтобы event loop не потерял их
+# (asyncio держит только weak references на tasks).
+_background_tasks: set[asyncio.Task] = set()
+
 
 class GenerateResponse(BaseModel):
     generation_id: str
@@ -159,7 +163,9 @@ async def generate(
             room_type=room_type.value,
             styles=[s.value for s in style_ids],
         )
-        asyncio.create_task(_run_mock_styles(gen.id, style_ids))
+        task = asyncio.create_task(_run_mock_styles(gen.id, style_ids))
+        _background_tasks.add(task)
+        task.add_done_callback(_background_tasks.discard)
         return JSONResponse(
             status_code=202,
             content={"generation_id": gen.id, "status": "processing"},
@@ -190,7 +196,7 @@ async def generate(
         raise HTTPException(status_code=502, detail=str(exc)) from exc
 
     # Параллельный запуск всех стилей (asyncio.gather — аналог Promise.all).
-    asyncio.create_task(
+    task = asyncio.create_task(
         _run_all_styles(
             generation_id=generation_id,
             user_id=user_id,
@@ -198,6 +204,8 @@ async def generate(
             styles=style_ids,
         )
     )
+    _background_tasks.add(task)
+    task.add_done_callback(_background_tasks.discard)
 
     return JSONResponse(
         status_code=202,
