@@ -280,7 +280,15 @@ async def _run_all_styles(
         for s in styles
     ]
     try:
-        await asyncio.gather(*tasks, return_exceptions=True)
+        gather_results = await asyncio.gather(*tasks, return_exceptions=True)
+        for style, result in zip(styles, gather_results):
+            if isinstance(result, BaseException):
+                logger.error(
+                    "Task for style %s raised: %s: %s",
+                    style.value,
+                    type(result).__name__,
+                    result,
+                )
     except Exception:
         logger.exception("Unexpected error in _run_all_styles for %s", generation_id)
     finally:
@@ -529,6 +537,56 @@ async def debug_vsegpt_test(image_url: str) -> dict:
                 })
 
     return {"model": model, "variants": results}
+
+
+@router.post("/debug/full-generate-test")
+async def debug_full_generate_test(image_url: str) -> dict:
+    """Синхронный полный тест: создание generation → VseGPT → результат.
+
+    Запускает _run_single_prediction без фоновой задачи, чтобы увидеть
+    реальную ошибку в ответе.
+    """
+    if not settings.vsegpt_api_key:
+        return {"error": "VSEGPT_API_KEY не задан"}
+    if _is_mock():
+        return {"error": "ML_MODE=mock"}
+
+    try:
+        generation = await supabase_admin.create_generation(
+            user_id=None,
+            anonymous_id=None,
+            source_image_path="debug/test",
+            room_type="other",
+        )
+        generation_id = generation["id"]
+        logger.info("Debug: created generation %s", generation_id)
+
+        style = StyleId("loft")
+        await _run_single_prediction(
+            generation_id, None, [image_url], style
+        )
+
+        results = await supabase_admin.fetch_results(generation_id)
+        gen = await supabase_admin.fetch_generation(generation_id)
+        return {
+            "success": gen.get("status") == "completed",
+            "generation_status": gen.get("status"),
+            "results": [
+                {
+                    "status": r.get("status"),
+                    "error": r.get("error"),
+                    "path": r.get("result_image_path"),
+                }
+                for r in results
+            ],
+        }
+    except Exception as exc:
+        logger.exception("Debug full generate failed")
+        return {
+            "success": False,
+            "error": str(exc)[:500],
+            "error_type": type(exc).__name__,
+        }
 
     try:
         data = await vsegpt_client.generate_image(
