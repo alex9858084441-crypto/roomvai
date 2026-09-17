@@ -306,6 +306,11 @@ async def _run_single_prediction(
     VseGPT.ru возвращает результат синхронно — webhook не нужен.
     """
     prompt = get_style_prompt(style)
+    logger.info(
+        "Generation %s: starting VseGPT prediction for style=%s",
+        generation_id,
+        style.value,
+    )
 
     # Создаём запись результата со статусом processing.
     try:
@@ -313,12 +318,23 @@ async def _run_single_prediction(
             generation_id, style.value, ""
         )
         result_id = result["id"]
+        logger.info(
+            "Generation %s: created result %s for style=%s",
+            generation_id,
+            result_id,
+            style.value,
+        )
     except Exception:
         logger.exception("Не удалось создать result в БД для стиля %s", style)
         return
 
     try:
         data = await vsegpt_client.generate_image(image_urls[0], prompt)
+        logger.info(
+            "Generation %s: VseGPT responded for style=%s",
+            generation_id,
+            style.value,
+        )
     except Exception as exc:
         logger.exception("Ошибка генерации на VseGPT для стиля %s", style)
         try:
@@ -561,6 +577,56 @@ async def debug_full_generate_test(image_url: str) -> dict:
         generation_id = generation["id"]
         logger.info("Debug: created generation %s", generation_id)
 
+        # Шаг 1: создание result.
+        result = await supabase_admin.create_result(generation_id, "loft", "")
+        result_id = result["id"]
+
+        # Шаг 2: VseGPT генерация.
+        prompt = get_style_prompt(StyleId("loft"))
+        data = await vsegpt_client.generate_image(image_url, prompt)
+        images = data.get("data", [])
+        if not images:
+            await supabase_admin.update_result(
+                result_id, status="failed", error="VseGPT вернул пустой результат"
+            )
+            return {"step": "empty_vsegpt", "success": False}
+
+        output_url = images[0].get("url", "")
+        b64_bytes = vsegpt_client.get_image_bytes(data)
+        if b64_bytes is None:
+            if not output_url:
+                await supabase_admin.update_result(
+                    result_id, status="failed", error="Нет URL и b64 в ответе"
+                )
+                return {"step": "no_image", "success": False}
+            async with httpx.AsyncClient(timeout=30) as client:
+                img_resp = await client.get(output_url)
+                img_resp.raise_for_status()
+                b64_bytes = img_resp.content
+
+        # Шаг 3: загрузка результата в Supabase.
+        filename = f"{generation_id}_loft.jpg"
+        storage_path = await supabase_admin.upload_result_image(
+            b64_bytes, None, filename
+        )
+
+        # Шаг 4: обновление статуса.
+        await supabase_admin.update_result(
+            result_id,
+            status="completed",
+            result_image_path=storage_path,
+            cost_usd=vsegpt_client.estimate_cost(data),
+        )
+        await supabase_admin.update_generation_status(generation_id, "completed")
+
+        return {
+            "success": True,
+            "image_size": len(b64_bytes),
+            "storage_path": storage_path,
+        }
+        # NOTE: тест ниже использует _run_single_prediction, но он вызывает
+        # второй VseGPT запрос (rate limit). Используем ручную последовательность.
+        style = StyleId("loft")
         style = StyleId("loft")
         await _run_single_prediction(
             generation_id, None, [image_url], style
