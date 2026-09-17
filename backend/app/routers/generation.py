@@ -314,10 +314,9 @@ async def _run_single_prediction(
 
     # Создаём запись результата со статусом processing.
     try:
-        result = await supabase_admin.create_result(
+        result_id = await supabase_admin.create_result(
             generation_id, style.value, ""
         )
-        result_id = result["id"]
         logger.info(
             "Generation %s: created result %s for style=%s",
             generation_id,
@@ -578,8 +577,7 @@ async def debug_full_generate_test(image_url: str) -> dict:
         logger.info("Debug: created generation %s", generation_id)
 
         # Шаг 1: создание result.
-        result = await supabase_admin.create_result(generation_id, "loft", "")
-        result_id = result["id"]
+        result_id = await supabase_admin.create_result(generation_id, "loft", "")
 
         # Шаг 2: VseGPT генерация.
         prompt = get_style_prompt(StyleId("loft"))
