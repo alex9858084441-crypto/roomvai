@@ -578,7 +578,7 @@ async def debug_full_generate_test(image_url: str) -> dict:
                 else 0
             ),
         }
-        return {"step": "vsegpt_ok", "vsegpt": vsegpt_info}
+        logger.info("Debug: VseGPT step OK: %s", vsegpt_info)
 
         style = StyleId("loft")
         await _run_single_prediction(
